@@ -120,3 +120,5 @@ def colocar_pieza(tablero, pieza):
         if 0 <= y < FILAS:
             nuevo_tablero[y][x] = pieza.color
     return nuevo_tablero, topout
+
+
