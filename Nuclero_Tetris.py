@@ -92,3 +92,31 @@ class EstadoJuego:
         self.nivel = nivel
         self.lineas_cleared = lineas_cleared
         self.game_over = game_over
+# ============================================================
+#                        FUNCIONES PURAS
+# ============================================================
+#Generar bolsa usando seed para mantener la pureza
+def generar_bolsa_pura(seed=None):
+    bolsa = list(TETROMINOS.keys())
+    rnd = random.Random(seed)  # Raíz
+    rnd.shuffle(bolsa)
+    return bolsa
+    
+def colisiona(tablero, pieza, rot=None, dx=0, dy=0):
+    for x, y in pieza.celdas(rot=rot, x=pieza.x+dx, y=pieza.y+dy):
+        if x < 0 or x >= COLUMNAS or y >= FILAS:
+            return True
+        if y >= 0 and tablero[y][x] is not None:
+            return True
+    return False
+
+def colocar_pieza(tablero, pieza):
+    nuevo_tablero = deepcopy(tablero)
+    topout = False
+    for x, y in pieza.celdas():
+        if y < 0:
+            topout = True
+            continue
+        if 0 <= y < FILAS:
+            nuevo_tablero[y][x] = pieza.color
+    return nuevo_tablero, topout
