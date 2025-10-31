@@ -120,5 +120,36 @@ def colocar_pieza(tablero, pieza):
         if 0 <= y < FILAS:
             nuevo_tablero[y][x] = pieza.color
     return nuevo_tablero, topout
+        
+def eliminar_lineas_completas(tablero):
+    nuevo_tablero = [fila for fila in tablero if any(c is None for c in fila)]
+    lineas_eliminadas = FILAS - len(nuevo_tablero)
+    for _ in range(lineas_eliminadas):
+        nuevo_tablero.insert(0, [None]*COLUMNAS)
+    return nuevo_tablero, lineas_eliminadas
 
+def generar_nueva_pieza_pura(bolsa, seed=0):
+    """
+    Genera una nueva pieza de Tetris de manera pura.
+    - bolsa: lista de tipos de tetrominós restantes.
+    - seed: semilla para mezclar la bolsa si está vacía.
+    Retorna: (pieza, nueva_bolsa)
+    """
+    from random import Random
 
+    bolsa = bolsa.copy()  # no mutamos la bolsa original
+
+    # Si la bolsa está vacía, regenerarla y mezclarla con semilla fija
+    if not bolsa:
+        bolsa = list(TETROMINOS.keys())
+        rnd = Random(seed)
+        rnd.shuffle(bolsa)
+
+    tipo = bolsa[-1]       # tomamos la última pieza
+    pieza = Pieza(tipo)
+    nueva_bolsa = bolsa[:-1]
+
+    return pieza, nueva_bolsa
+
+def verificar_game_over(tablero, pieza):
+    return colisiona(tablero, pieza)
