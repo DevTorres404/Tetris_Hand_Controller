@@ -78,6 +78,13 @@ class Pieza:
                 if mat[j][i]:
                     salida.append((ox + i, oy + j))
         return salida
+    def clonar(self):
+        """Crea una copia de esta pieza."""
+        nueva = Pieza(self.tipo)
+        nueva.rot = self.rot
+        nueva.x = self.x
+        nueva.y = self.y
+        return nueva
 # ============================================================
 #                        ESTRUCTURAS DE DATOS
 # ============================================================
