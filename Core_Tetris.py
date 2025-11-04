@@ -136,3 +136,85 @@ class Motor:
         tipo = self.bolsa[-1]  # Peek sin sacar
         self.siguiente_pieza = Pieza(tipo, self.columnas)
         
+    def colisiona(self, pieza, rot=None, dx=0, dy=0):
+        """Verifica si la pieza colisiona con bordes o bloques."""
+        for (x, y) in pieza.celdas(rot=rot):
+            nx, ny = x + dx, y + dy
+            # Fuera de límites
+            if nx < 0 or nx >= self.columnas or ny >= self.filas:
+                return True
+            # Colisión con bloque existente
+            if ny >= 0 and self.tablero[ny][nx] is not None:
+                return True
+        return False
+    
+    def mover(self, dx, dy):
+        """Intenta mover la pieza. Retorna True si tuvo éxito."""
+        if self.game_over or self.pieza_actual is None:
+            return False
+        
+        if not self.colisiona(self.pieza_actual, dx=dx, dy=dy):
+            self.pieza_actual.x += dx
+            self.pieza_actual.y += dy
+            return True
+        return False
+    
+    def rotar(self, direccion=1):
+        """Intenta rotar la pieza con wall kicks. Retorna True si tuvo éxito."""
+        if self.game_over or self.pieza_actual is None:
+            return False
+        
+        nueva_rot = (self.pieza_actual.rot + direccion) % len(self.pieza_actual.forma)
+        
+        # Sistema de kicks: intentar diferentes posiciones
+        kicks = [(0,0), (-1,0), (1,0), (0,-1), (-2,0), (2,0)]
+        for dx, dy in kicks:
+            if not self.colisiona(self.pieza_actual, rot=nueva_rot, dx=dx, dy=dy):
+                self.pieza_actual.rot = nueva_rot
+                self.pieza_actual.x += dx
+                self.pieza_actual.y += dy
+                return True
+        return False
+    
+    def caida_suave(self):
+        """Intenta mover la pieza una fila abajo. Retorna True si tuvo éxito."""
+        return self.mover(0, 1)
+    
+    def caida_dura(self):
+        """Deja caer la pieza hasta el fondo y la fija. Retorna filas bajadas."""
+        if self.game_over or self.pieza_actual is None:
+            return 0
+        
+        filas = 0
+        while not self.colisiona(self.pieza_actual, dy=filas+1):
+            filas += 1
+        
+        self.pieza_actual.y += filas
+        self._fijar_pieza()
+        return filas
+    
+    def _fijar_pieza(self):
+        """Convierte la pieza actual en bloques fijos en el tablero."""
+        if self.pieza_actual is None:
+            return
+        
+        topout = False
+        for (x, y) in self.pieza_actual.celdas():
+            if y < 0:
+                topout = True
+                continue
+            if 0 <= y < self.filas:
+                self.tablero[y][x] = self.pieza_actual.tipo
+        
+        if topout:
+            self.game_over = True
+            return
+        
+        # Limpiar líneas y actualizar estadísticas
+        lineas_limpiadas = self._limpiar_lineas()
+        self._actualizar_puntaje(lineas_limpiadas)
+        
+        # Generar nueva pieza
+        self._generar_nueva_pieza()
+        self._generar_siguiente_pieza()
+        
