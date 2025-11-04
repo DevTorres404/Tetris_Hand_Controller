@@ -49,20 +49,19 @@ TETROMINOS = {
     ]},
 }
 
-# ============================================================
-#                       CLASE PIEZA
-# ============================================================
+
 class Pieza:
+    """Representa un tetrominó con posición y rotación."""
+    
     def __init__(self, tipo, columnas=10):
-        """Representa un tetrominó con posición y rotación."""
         self.tipo = tipo
         self.rot = 0
         self.x = (columnas - 4) // 2  # Centrar horizontalmente
         self.y = -2  # Empezar arriba del área visible
         self.forma = TETROMINOS[tipo]["rot"]
-
+    
     def celdas(self, rot=None):
-          """Retorna lista de coordenadas (x, y) ocupadas por la pieza."""
+        """Retorna lista de coordenadas (x, y) ocupadas por la pieza."""
         r = self.rot if rot is None else rot
         salida = []
         mat = self.forma[r]
@@ -71,7 +70,7 @@ class Pieza:
                 if mat[j][i]:
                     salida.append((self.x + i, self.y + j))
         return salida
-
+    
     def clonar(self):
         """Crea una copia de esta pieza."""
         nueva = Pieza(self.tipo)
