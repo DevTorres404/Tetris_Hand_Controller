@@ -59,14 +59,12 @@ class Pieza:
 
     def celdas(self, rot=None, x=None, y=None):
         r = self.rot if rot is None else rot
-        ox = self.x if x is None else x
-        oy = self.y if y is None else y
         salida = []
         mat = self.forma[r]
         for j in range(4):
             for i in range(4):
                 if mat[j][i]:
-                    salida.append((ox + i, oy + j))
+                    salida.append((self.x + i, self.y + j))
         return salida
     def clonar(self):
         """Crea una copia de esta pieza."""
