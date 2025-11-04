@@ -82,61 +82,57 @@ class Pieza:
 # ============================================================
 #                        MOTOR DEL JUEGO
 # ============================================================
-#Generar bolsa usando seed para mantener la pureza
-def generar_bolsa_pura(seed=None):
-    bolsa = list(TETROMINOS.keys())
-    rnd = random.Random(seed)  # Raíz
-    rnd.shuffle(bolsa)
-    return bolsa
+class Motor:
+    """Clase que maneja toda la lógica del juego Tetris."""
     
-def colisiona(tablero, pieza, rot=None, dx=0, dy=0):
-    for x, y in pieza.celdas(rot=rot, x=pieza.x+dx, y=pieza.y+dy):
-        if x < 0 or x >= COLUMNAS or y >= FILAS:
-            return True
-        if y >= 0 and tablero[y][x] is not None:
-            return True
-    return False
-
-def colocar_pieza(tablero, pieza):
-    nuevo_tablero = deepcopy(tablero)
-    topout = False
-    for x, y in pieza.celdas():
-        if y < 0:
-            topout = True
-            continue
-        if 0 <= y < FILAS:
-            nuevo_tablero[y][x] = pieza.color
-    return nuevo_tablero, topout
+    def __init__(self, columnas=10, filas=20, gravedad_base=0.8):
+        self.columnas = columnas
+        self.filas = filas
+        self.gravedad_base = gravedad_base
         
-def eliminar_lineas_completas(tablero):
-    nuevo_tablero = [fila for fila in tablero if any(c is None for c in fila)]
-    lineas_eliminadas = FILAS - len(nuevo_tablero)
-    for _ in range(lineas_eliminadas):
-        nuevo_tablero.insert(0, [None]*COLUMNAS)
-    return nuevo_tablero, lineas_eliminadas
-
-def generar_nueva_pieza_pura(bolsa, seed=0):
-    """
-    Genera una nueva pieza de Tetris de manera pura.
-    - bolsa: lista de tipos de tetrominós restantes.
-    - seed: semilla para mezclar la bolsa si está vacía.
-    Retorna: (pieza, nueva_bolsa)
-    """
-    from random import Random
-
-    bolsa = bolsa.copy()  # no mutamos la bolsa original
-
-    # Si la bolsa está vacía, regenerarla y mezclarla con semilla fija
-    if not bolsa:
+        # Estado del juego
+        self.tablero = self._nuevo_tablero()
+        self.bolsa = self._generar_bolsa()
+        self.pieza_actual = None
+        self.siguiente_pieza = None
+        
+        # Estadísticas
+        self.puntaje = 0
+        self.nivel = 1
+        self.lineas_totales = 0
+        
+        # Estado de juego
+        self.game_over = False
+        
+        # Generar primera y segunda pieza
+        self._generar_nueva_pieza()
+        self._generar_siguiente_pieza()
+    
+    def _nuevo_tablero(self):
+        """Crea un tablero vacío."""
+        return [[None for _ in range(self.columnas)] for _ in range(self.filas)]
+    
+    def _generar_bolsa(self):
+        """Sistema 7-bag: cada pieza aparece una vez por bolsa."""
         bolsa = list(TETROMINOS.keys())
-        rnd = Random(seed)
-        rnd.shuffle(bolsa)
-
-    tipo = bolsa[-1]       # tomamos la última pieza
-    pieza = Pieza(tipo)
-    nueva_bolsa = bolsa[:-1]
-
-    return pieza, nueva_bolsa
-
-def verificar_game_over(tablero, pieza):
-    return colisiona(tablero, pieza)
+        random.shuffle(bolsa)
+        return bolsa
+    
+    def _generar_nueva_pieza(self):
+        """Toma una pieza de la bolsa y la hace actual."""
+        if not self.bolsa:
+            self.bolsa = self._generar_bolsa()
+        tipo = self.bolsa.pop()
+        self.pieza_actual = Pieza(tipo, self.columnas)
+        
+        # Verificar si hay game over inmediato
+        if self.colisiona(self.pieza_actual):
+            self.game_over = True
+    
+    def _generar_siguiente_pieza(self):
+        """Prepara la siguiente pieza para mostrar."""
+        if not self.bolsa:
+            self.bolsa = self._generar_bolsa()
+        tipo = self.bolsa[-1]  # Peek sin sacar
+        self.siguiente_pieza = Pieza(tipo, self.columnas)
+        
