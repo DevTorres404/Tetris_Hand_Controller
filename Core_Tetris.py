@@ -217,4 +217,56 @@ class Motor:
         # Generar nueva pieza
         self._generar_nueva_pieza()
         self._generar_siguiente_pieza()
+    
+    def _limpiar_lineas(self):
+        """Elimina líneas completas. Retorna cantidad de líneas limpiadas."""
+        mantener = [fila for fila in self.tablero if any(celda is None for celda in fila)]
+        limpiadas = self.filas - len(mantener)
         
+        # Agregar filas vacías arriba
+        while len(mantener) < self.filas:
+            mantener.insert(0, [None for _ in range(self.columnas)])
+        
+        self.tablero = mantener
+        return limpiadas
+    
+    def _actualizar_puntaje(self, lineas_limpiadas, bonus_caida_dura=0):
+        """Actualiza puntaje, líneas y nivel."""
+        # Sistema de puntuación: 100, 300, 500, 800 por 1-4 líneas
+        puntos_lineas = [0, 100, 300, 500, 800]
+        self.puntaje += puntos_lineas[lineas_limpiadas] + bonus_caida_dura * 2
+        
+        self.lineas_totales += lineas_limpiadas
+        
+        # Nivel aumenta cada 10 líneas
+        nivel_anterior = self.nivel
+        self.nivel = 1 + self.lineas_totales // 10
+        
+        return self.nivel > nivel_anterior  # Retorna True si subió de nivel
+    
+    def gravedad_actual(self):
+        """Calcula el intervalo de gravedad actual basado en el nivel."""
+        return max(0.1, self.gravedad_base * (0.9 ** (self.nivel - 1)))
+    
+    def reiniciar(self):
+        """Reinicia el juego a estado inicial."""
+        self.tablero = self._nuevo_tablero()
+        self.bolsa = self._generar_bolsa()
+        self.puntaje = 0
+        self.nivel = 1
+        self.lineas_totales = 0
+        self.game_over = False
+        self._generar_nueva_pieza()
+        self._generar_siguiente_pieza()
+    
+    def obtener_estado(self):
+        """Retorna un diccionario con el estado completo del juego."""
+        return {
+            'tablero': self.tablero,
+            'pieza_actual': self.pieza_actual,
+            'siguiente_pieza': self.siguiente_pieza,
+            'puntaje': self.puntaje,
+            'nivel': self.nivel,
+            'lineas': self.lineas_totales,
+            'game_over': self.game_over
+        }
