@@ -1,21 +1,9 @@
 # =============================================================================
-#                      NÚCLEO FUNCIONAL PURO DEL TETRIS
+#                       NÚCLEO LÓGICO DEL TETRIS
 # =============================================================================
+# Este módulo contiene toda la lógica del juego sin dependencias de pygame
+# o renderizado. Maneja el tablero, piezas, colisiones, rotaciones y puntuación.
 import random
-from copy import deepcopy
-# ============================================================
-#                           CONSTANTES
-# ============================================================
-COLUMNAS, FILAS = 10, 20
-
-# Colores tipo Tetris clásico
-C_I = (0, 255, 255)
-C_O = (255, 255, 0)
-C_T = (160, 0, 240)
-C_S = (0, 255, 0)
-C_Z = (255, 0, 0)
-C_J = (0, 0, 255)
-C_L = (255, 128, 0)
 # ============================================================
 #                        FORMAS DE TETROMINÓS
 # ============================================================
@@ -58,14 +46,16 @@ TETROMINOS = {
         [[1,1,0,0],[0,1,0,0],[0,1,0,0],[0,0,0,0]],
     ]},
 }
+# ============================================================
+#                       CLASE PIEZA
+# ============================================================
 class Pieza:
-    def __init__(self, tipo, x=3, y=-2, rot=0):
+    def __init__(self, tipo, columnas=10):
         self.tipo = tipo
-        self.rot = rot
-        self.x = x
-        self.y = y
+        self.rot = 0
+        self.x = (columnas - 4) // 2  # Centrar horizontalmente
+        self.y = -2  # Empezar arriba del área visible
         self.forma = TETROMINOS[tipo]["rot"]
-        self.color = TETROMINOS[tipo]["color"]
 
     def celdas(self, rot=None, x=None, y=None):
         r = self.rot if rot is None else rot
@@ -85,20 +75,7 @@ class Pieza:
         nueva.x = self.x
         nueva.y = self.y
         return nueva
-# ============================================================
-#                        ESTRUCTURAS DE DATOS
-# ============================================================
 
-class EstadoJuego:
-    def __init__(self, tablero=None, pieza_actual=None, siguiente_pieza=None,
-                 puntaje=0, nivel=1, lineas_cleared=0, game_over=False):
-        self.tablero = tablero or [[None]*COLUMNAS for _ in range(FILAS)]
-        self.pieza_actual = pieza_actual
-        self.siguiente_pieza = siguiente_pieza
-        self.puntaje = puntaje
-        self.nivel = nivel
-        self.lineas_cleared = lineas_cleared
-        self.game_over = game_over
 # ============================================================
 #                        FUNCIONES PURAS
 # ============================================================
