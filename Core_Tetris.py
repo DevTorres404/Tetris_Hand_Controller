@@ -80,7 +80,7 @@ class Pieza:
         return nueva
 
 # ============================================================
-#                        FUNCIONES PURAS
+#                        MOTOR DEL JUEGO
 # ============================================================
 #Generar bolsa usando seed para mantener la pureza
 def generar_bolsa_pura(seed=None):
