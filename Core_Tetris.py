@@ -3,9 +3,11 @@
 # =============================================================================
 # Este módulo contiene toda la lógica del juego sin dependencias de pygame
 # o renderizado. Maneja el tablero, piezas, colisiones, rotaciones y puntuación.
+
 import random
+
 # ============================================================
-#                        FORMAS DE TETROMINÓS
+#                    FORMAS DE TETROMINÓS
 # ============================================================
 TETROMINOS = {
     "I": {"rot": [
@@ -46,6 +48,7 @@ TETROMINOS = {
         [[1,1,0,0],[0,1,0,0],[0,1,0,0],[0,0,0,0]],
     ]},
 }
+
 # ============================================================
 #                       CLASE PIEZA
 # ============================================================
