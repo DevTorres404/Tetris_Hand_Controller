@@ -291,3 +291,79 @@ class ControladorMano:
                             self.mp_estilo.get_default_hand_landmarks_style(),
                             self.mp_estilo.get_default_hand_connections_style(),
                         )
+                                   
+            # ===== PROCESAR GESTOS =====
+            # CUALQUIER DEDO LIBRE (índice, medio o anular solo) → CAÍDA DURA (prioridad máxima)
+            # El meñique NO activa caída dura, está reservado para ROTAR
+            dedo_libre_detectado = False
+            
+            # Para mano izquierda - verificar si hay exactamente un dedo extendido (excluyendo meñique)
+            if mano_izq_usuario:
+                dedos_sin_menique = [mano_izq_usuario['ind'], mano_izq_usuario['med'], 
+                                     mano_izq_usuario['anl']]
+                if sum(dedos_sin_menique) == 1 and not mano_izq_usuario['men']:  # Solo un dedo (no meñique)
+                    # Verificar que no tenga pulgar arriba/abajo activo
+                    if not mano_izq_usuario['pulgar_arriba'] and not mano_izq_usuario['pulgar_abajo']:
+                        dedo_libre_detectado = True
+            
+            # Para mano derecha - verificar si hay exactamente un dedo extendido (excluyendo meñique)
+            if mano_der_usuario:
+                dedos_sin_menique = [mano_der_usuario['ind'], mano_der_usuario['med'], 
+                                     mano_der_usuario['anl']]
+                if sum(dedos_sin_menique) == 1 and not mano_der_usuario['men']:  # Solo un dedo (no meñique)
+                    # Verificar que no tenga pulgar arriba/abajo activo
+                    if not mano_der_usuario['pulgar_arriba'] and not mano_der_usuario['pulgar_abajo']:
+                        dedo_libre_detectado = True
+
+            if dedo_libre_detectado:
+                if self._caida_dura_armado and (ahora - self._ultimo_tiempo_caida_dura) >= self.caida_dura_debounce_s:
+                    self.borde_caida_dura = True
+                    self._ultimo_tiempo_caida_dura = ahora
+                    self._caida_dura_destellar_hasta = ahora + 0.40
+                    self._contador_caida_dura += 1
+                    self._caida_dura_armado = False
+            else:
+                self._caida_dura_armado = True
+
+            # SOLO MEÑIQUE extendido → ROTAR (solo si NO hay dedo libre)
+            solo_menique_izq = (mano_izq_usuario and mano_izq_usuario['solo_menique'] 
+                               and not dedo_libre_detectado)
+            solo_menique_der = (mano_der_usuario and mano_der_usuario['solo_menique']
+                               and not dedo_libre_detectado)
+            solo_menique_detectado = solo_menique_izq or solo_menique_der
+
+            if solo_menique_detectado and not dedo_libre_detectado:
+                if self._rotar_armado and (ahora - self._ultimo_tiempo_rotar) >= self.rotar_debounce_s:
+                    self.borde_rotar_hor = True
+                    self._ultimo_tiempo_rotar = ahora
+                    self._rotar_destellar_hasta = ahora + 0.30
+                    self._contador_rotar += 1
+                    self._rotar_armado = False
+            else:
+                self._rotar_armado = True
+
+            # PULGAR ARRIBA MANO IZQUIERDA USUARIO → MOVER IZQUIERDA
+            # (solo si NO hay meñique solo ni dedo libre)
+            if (mano_izq_usuario and mano_izq_usuario['pulgar_arriba'] 
+                and not solo_menique_izq 
+                and not dedo_libre_detectado):
+                if self._izq_armado and (ahora - self._ultimo_tiempo_izq) >= self.movimiento_debounce_s:
+                    self.dir_mov = -1
+                    self._pasos_izq += 1
+                    self._ultimo_tiempo_izq = ahora
+                    self._izq_armado = False
+            else:
+                self._izq_armado = True
+
+            # PULGAR ARRIBA MANO DERECHA USUARIO → MOVER DERECHA
+            # (solo si NO hay meñique solo ni dedo libre)
+            if (mano_der_usuario and mano_der_usuario['pulgar_arriba'] 
+                and not solo_menique_der 
+                and not dedo_libre_detectado):
+                if self._der_armado and (ahora - self._ultimo_tiempo_der) >= self.movimiento_debounce_s:
+                    self.dir_mov = 1
+                    self._pasos_der += 1
+                    self._ultimo_tiempo_der = ahora
+                    self._der_armado = False
+            else:
+                self._der_armado = True
