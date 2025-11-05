@@ -205,3 +205,290 @@ class RenderizadorTetris:
         self.pantalla.blit(estado, estado.get_rect(center=(cx, cy - 10)))
         self.pantalla.blit(ayuda, ayuda.get_rect(center=(cx, cy + 30)))
         pygame.display.flip()
+# ============================================================
+#                      GESTOR DE AUDIO
+# ============================================================
+class GestorAudio:
+    """Maneja todos los efectos de sonido y música."""
+    
+    def __init__(self):
+        self.sonidos = {}
+        self._cargar_sonidos()
+    
+    def _cargar_sonidos(self):
+        """Carga todos los archivos de sonido."""
+        try:
+            self.sonidos['mover'] = pygame.mixer.Sound(
+                os.path.join(DIRECTORIO_SONIDOS, "move.wav")
+            )
+            self.sonidos['rotar'] = pygame.mixer.Sound(
+                os.path.join(DIRECTORIO_SONIDOS, "rotate.wav")
+            )
+            self.sonidos['fijar'] = pygame.mixer.Sound(
+                os.path.join(DIRECTORIO_SONIDOS, "piece_landed.wav")
+            )
+            self.sonidos['linea'] = pygame.mixer.Sound(
+                os.path.join(DIRECTORIO_SONIDOS, "line.wav")
+            )
+            self.sonidos['tetris'] = pygame.mixer.Sound(
+                os.path.join(DIRECTORIO_SONIDOS, "4_lines.wav")
+            )
+            self.sonidos['nivel'] = pygame.mixer.Sound(
+                os.path.join(DIRECTORIO_SONIDOS, "level_up.wav")
+            )
+            self.sonidos['game_over'] = pygame.mixer.Sound(
+                os.path.join(DIRECTORIO_SONIDOS, "game_over.wav")
+            )
+            
+            pygame.mixer.music.load(
+                os.path.join(DIRECTORIO_SONIDOS, "background.wav")
+            )
+        except Exception as e:
+            print(f"Error cargando sonidos: {e}")
+    
+    def reproducir(self, nombre):
+        """Reproduce un efecto de sonido."""
+        if nombre in self.sonidos:
+            self.sonidos[nombre].play()
+    
+    def iniciar_musica(self):
+        """Inicia la música de fondo en bucle."""
+        pygame.mixer.music.play(-1)
+    
+    def detener_musica(self):
+        """Detiene la música de fondo."""
+        pygame.mixer.music.stop()
+
+# ============================================================
+#                    BUCLE PRINCIPAL DEL JUEGO
+# ============================================================
+def ejecutar_juego(mano=None):
+    """Ejecuta una sesión completa de juego."""
+    pantalla = pygame.display.set_mode((ANCHO, ALTO))
+    pygame.display.set_caption("Tetris — Controles Teclado + Mano")
+    reloj = pygame.time.Clock()
+    
+    # Inicializar componentes
+    motor = Motor(COLUMNAS, FILAS, GRAVEDAD_BASE_S)
+    render = RenderizadorTetris(pantalla)
+    audio = GestorAudio()
+    
+    # Mostrar pantalla de carga
+    mensaje = ("Iniciando cámara..." if mano else "Modo solo teclado")
+    render.pantalla_carga(mensaje, mano is not None)
+    
+    # Esperar ENTER
+    esperando = True
+    while esperando:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return False
+            if event.type == pygame.KEYDOWN:
+                if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                    esperando = False
+                elif event.key in (pygame.K_ESCAPE, pygame.K_q):
+                    return False
+    
+    audio.iniciar_musica()
+    
+    # Variables de control
+    ultima_gravedad = time.time()
+    caida_suave_teclado = False
+    caida_suave_mano = False
+    ultima_caida_suave = time.time()
+    
+    # Repetición de teclas
+    mover_izq = mover_der = False
+    retraso_repeticion = 0.15
+    ultimo_mov = 0.0
+    
+    nivel_anterior = 1
+    
+    # Bucle principal
+    ejecutando = True
+    while ejecutando and not motor.game_over:
+        ahora = time.time()
+        reloj.tick(FPS)
+        
+        # 1) PROCESAR EVENTOS DE TECLADO
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return False
+            
+            elif event.type == pygame.KEYDOWN:
+                if event.key in (pygame.K_LEFT, pygame.K_a):
+                    if motor.mover(-1, 0):
+                        audio.reproducir('mover')
+                    mover_izq = True
+                    ultimo_mov = ahora
+                
+                elif event.key in (pygame.K_RIGHT, pygame.K_d):
+                    if motor.mover(1, 0):
+                        audio.reproducir('mover')
+                    mover_der = True
+                    ultimo_mov = ahora
+                
+                elif event.key in (pygame.K_UP, pygame.K_x):
+                    if motor.rotar(1):
+                        audio.reproducir('rotar')
+                
+                elif event.key == pygame.K_z:
+                    if motor.rotar(-1):
+                        audio.reproducir('rotar')
+                
+                elif event.key == pygame.K_DOWN:
+                    caida_suave_teclado = True
+                
+                elif event.key == pygame.K_SPACE:
+                    filas = motor.caida_dura()
+                    audio.reproducir('fijar')
+                    
+                    # Actualizar puntaje y nivel
+                    estado = motor.obtener_estado()
+                    if estado['lineas'] >= 4:
+                        audio.reproducir('tetris')
+                    elif estado['lineas'] > 0:
+                        audio.reproducir('linea')
+                    
+                    if estado['nivel'] > nivel_anterior:
+                        audio.reproducir('nivel')
+                        nivel_anterior = estado['nivel']
+                    
+                    ultima_gravedad = ahora
+            
+            elif event.type == pygame.KEYUP:
+                if event.key in (pygame.K_LEFT, pygame.K_a):
+                    mover_izq = False
+                elif event.key in (pygame.K_RIGHT, pygame.K_d):
+                    mover_der = False
+                elif event.key == pygame.K_DOWN:
+                    caida_suave_teclado = False
+        
+        # 2) PROCESAR INPUT DE MANOS
+        if mano is not None:
+            # ¡CORREGIDO! Ahora capturamos caida_dura_borde
+            dir_mov, caida_suave_m, rotar_borde, caida_dura_borde = mano.consultar()
+            
+            # Movimiento lateral
+            if dir_mov == -1:
+                if motor.mover(-1, 0):
+                    audio.reproducir('mover')
+            elif dir_mov == 1:
+                if motor.mover(1, 0):
+                    audio.reproducir('mover')
+            
+            # Rotación
+            if rotar_borde:
+                if motor.rotar(1):
+                    audio.reproducir('rotar')
+            
+            #  Caída dura con gesto 
+            if caida_dura_borde:
+                filas = motor.caida_dura()
+                audio.reproducir('fijar')
+                
+                # Actualizar puntaje y nivel
+                estado = motor.obtener_estado()
+                lineas_nuevas = estado['lineas']
+                
+                if lineas_nuevas == 4:
+                    audio.reproducir('tetris')
+                elif lineas_nuevas > 0:
+                    audio.reproducir('linea')
+                
+                if estado['nivel'] > nivel_anterior:
+                    audio.reproducir('nivel')
+                    nivel_anterior = estado['nivel']
+                
+                ultima_gravedad = ahora
+            
+            # Caída suave
+            caida_suave_mano = bool(caida_suave_m)
+        
+        # 3) REPETICIÓN DE TECLAS
+        if mover_izq or mover_der:
+            if ahora - ultimo_mov >= retraso_repeticion:
+                if mover_izq and motor.mover(-1, 0):
+                    audio.reproducir('mover')
+                    ultimo_mov = ahora
+                if mover_der and motor.mover(1, 0):
+                    audio.reproducir('mover')
+                    ultimo_mov = ahora
+        
+        # 4) CAÍDA SUAVE
+        caida_suave_activa = caida_suave_teclado or caida_suave_mano
+        if caida_suave_activa and (ahora - ultima_caida_suave) >= INTERVALO_CAIDA_SUAVE_S:
+            motor.caida_suave()
+            ultima_caida_suave = ahora
+        
+        # 5) GRAVEDAD
+        gravedad_s = motor.gravedad_actual()
+        if caida_suave_activa:
+            gravedad_s *= 0.15
+        
+        if ahora - ultima_gravedad >= gravedad_s:
+            if not motor.caida_suave():
+                # Pieza no pudo caer, fijarla
+                estado_anterior = motor.obtener_estado()
+                motor._fijar_pieza()
+                audio.reproducir('fijar')
+                
+                estado = motor.obtener_estado()
+                lineas_nuevas = estado['lineas'] - estado_anterior['lineas']
+                
+                if lineas_nuevas == 4:
+                    audio.reproducir('tetris')
+                elif lineas_nuevas > 0:
+                    audio.reproducir('linea')
+                
+                if estado['nivel'] > nivel_anterior:
+                    audio.reproducir('nivel')
+                    nivel_anterior = estado['nivel']
+            
+            ultima_gravedad = ahora
+        
+        # 6) RENDERIZAR
+        estado = motor.obtener_estado()
+        render.dibujar_tablero(estado['tablero'])
+        render.dibujar_pieza(estado['pieza_actual'])
+        render.dibujar_hud(estado, mano is not None)
+        pygame.display.flip()
+    
+    # GAME OVER
+    audio.detener_musica()
+    audio.reproducir('game_over')
+    
+    estado_final = motor.obtener_estado()
+    render.barrido_game_over(estado_final['tablero'])
+    
+    return render.menu_game_over(
+        estado_final['puntaje'],
+        estado_final['lineas'],
+        estado_final['nivel']
+    )
+
+# ============================================================
+#                         MAIN
+# ============================================================
+def main():
+    pygame.mixer.pre_init(44100, -16, 2, 512)
+    pygame.init()
+    
+    mano = crear_controlador_manos_o_nada(mostrar_camara=True, espejo=False)
+    
+    while True:
+        reiniciar = ejecutar_juego(mano)
+        if not reiniciar:
+            break
+    
+    if mano is not None:
+        try:
+            mano.detener()
+        except:
+            pass
+    
+    pygame.quit()
+    sys.exit()
+
+if __name__ == "__main__":
+    main()
