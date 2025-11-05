@@ -3,7 +3,7 @@
 #                    INTERFAZ Y PRESENTACIÓN DEL TETRIS
 # =============================================================================
 # Este módulo maneja toda la visualización, sonidos, controles y flujo de UI
-# usando pygame. Depende de nucleo_tetris.py para la lógica del juego.
+# usando pygame. Depende de core_tetris.py para la lógica del juego.
 
 import pygame
 import sys
