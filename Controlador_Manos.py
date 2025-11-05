@@ -367,3 +367,107 @@ class ControladorMano:
                     self._der_armado = False
             else:
                 self._der_armado = True
+            # PULGAR ABAJO (cualquier mano) → CAÍDA SUAVE (continua)
+            # Solo si NO hay dedo libre
+            pulgar_abajo_detectado = False
+            if not dedo_libre_detectado:
+                if mano_izq_usuario and mano_izq_usuario['pulgar_abajo']:
+                    pulgar_abajo_detectado = True
+                if mano_der_usuario and mano_der_usuario['pulgar_abajo']:
+                    pulgar_abajo_detectado = True
+            self.caida_suave = pulgar_abajo_detectado
+
+            # ===== HUD =====
+            if self.mostrar_camara:
+                def poner(y, texto):
+                    cv2.putText(dibujar_bgr, texto, (8, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                                (255, 255, 255), 1, cv2.LINE_AA)
+
+                poner(24,  f"IZQUIERDA (pulgar arriba mano izq): {self._pasos_izq} | Armado: {'SI' if self._izq_armado else 'NO'}")
+                poner(48,  f"DERECHA (pulgar arriba mano der): {self._pasos_der} | Armado: {'SI' if self._der_armado else 'NO'}")
+                
+                rotar_on = (time.time() <= self._rotar_destellar_hasta)
+                poner(72,  f"ROTAR (solo meñique): {self._contador_rotar} | {'ACTIVO!' if rotar_on else 'listo'}")
+                
+                caida_dura_on = (time.time() <= self._caida_dura_destellar_hasta)
+                poner(96,  f"CAIDA DURA (dedo indice/medio/anular): {self._contador_caida_dura} | {'ACTIVO!' if caida_dura_on else 'listo'}")
+                
+                poner(120, f"Caida Suave (pulgar abajo): {'ACTIVA' if self.caida_suave else 'inactiva'}")
+                
+                poner(144, f"Manos: Izq={'SI' if mano_izq_usuario else 'NO'} | Der={'SI' if mano_der_usuario else 'NO'} | FPS: {fps:4.1f}")
+                
+                # DEBUG: Estado de dedos
+                if mano_izq_usuario:
+                    poner(168, f"Mano IZQ: SoloMeñ={mano_izq_usuario['solo_menique']} | Dedos: I{int(mano_izq_usuario['ind'])}M{int(mano_izq_usuario['med'])}A{int(mano_izq_usuario['anl'])}Ñ{int(mano_izq_usuario['men'])}")
+                if mano_der_usuario:
+                    poner(192, f"Mano DER: SoloMeñ={mano_der_usuario['solo_menique']} | Dedos: I{int(mano_der_usuario['ind'])}M{int(mano_der_usuario['med'])}A{int(mano_der_usuario['anl'])}Ñ{int(mano_der_usuario['men'])}")
+                
+                # Instrucciones
+                poner(250, "TECLAS: q=salir | m=espejo | ,/. umbral_pulgar | [/] dist_dedos")
+
+                if self.espejar_previsualizacion:
+                    dibujar_bgr = cv2.flip(dibujar_bgr, 1)
+
+                cv2.imshow("Cámara Mano", dibujar_bgr)
+
+                # Teclas
+                tecla = cv2.waitKey(1) & 0xFF
+                if tecla == ord('q'):
+                    self.detener()
+                    return
+                elif tecla == ord('m'):
+                    self.espejar_previsualizacion = not self.espejar_previsualizacion
+                elif tecla == ord(','):
+                    self.umbral_dir_pulgar = max(0.05, self.umbral_dir_pulgar - 0.02)
+                    print(f"Umbral pulgar: {self.umbral_dir_pulgar:.2f}")
+                elif tecla == ord('.'):
+                    self.umbral_dir_pulgar = min(0.60, self.umbral_dir_pulgar + 0.02)
+                    print(f"Umbral pulgar: {self.umbral_dir_pulgar:.2f}")
+                elif tecla == ord('['):
+                    self.dist_min_dedo = max(0.08, self.dist_min_dedo - 0.02)
+                    print(f"Distancia dedos: {self.dist_min_dedo:.2f}")
+                elif tecla == ord(']'):
+                    self.dist_min_dedo = min(0.40, self.dist_min_dedo + 0.02)
+                    print(f"Distancia dedos: {self.dist_min_dedo:.2f}")
+
+            time.sleep(1/60.0)
+
+
+def crear_controlador_manos_o_nada(mostrar_camara: bool = True, espejo: bool = False, **kwargs) -> Optional[ControladorMano]:
+    """Crea y retorna un controlador de manos o None si falla."""
+    if not MEDIAPIPE_DISPONIBLE:
+        return None
+    try:
+        cm = ControladorMano(mostrar_camara=mostrar_camara, espejar_previsualizacion=espejo, **kwargs)
+        cm.iniciar()
+        return cm
+    except Exception:
+        return None
+
+
+if __name__ == "__main__":
+    ctrl = crear_controlador_manos_o_nada(mostrar_camara=True, espejo=False)
+    if ctrl is None:
+        print("Falló al iniciar ControladorMano")
+    else:
+        print("Controlador ejecutándose. Presiona 'q' para salir.")
+        print("\nGESTOS:")
+        print("  Pulgar ARRIBA mano IZQUIERDA     → MOVER IZQUIERDA")
+        print("  Pulgar ARRIBA mano DERECHA       → MOVER DERECHA")
+        print("  SOLO MEÑIQUE (cualquier mano)    → ROTAR")
+        print("  Pulgar ABAJO (cualquier mano)    → CAÍDA SUAVE")
+        print("  Dedo índice/medio/anular libre   → CAÍDA DURA")
+        print("\nNOTA: Las manos están invertidas automáticamente (efecto espejo)")
+        print("\nTECLAS DE AJUSTE:")
+        print("  [/] → Ajustar sensibilidad de dedos extendidos")
+        print("  ,/. → Ajustar sensibilidad de pulgar arriba/abajo")
+        try:
+            while True:
+                resultado = ctrl.consultar()
+                if any(resultado):  # Solo imprimir si hay algún gesto
+                    print(resultado)
+                time.sleep(0.1)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            ctrl.detener()
