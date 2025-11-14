@@ -8,8 +8,8 @@ import pygame
 import sys
 import time
 import os
-from Core_Tetris import Motor, TETROMINOS
-from Controlador_Manos import crear_controlador_manos_o_nada
+from core_tetris import Motor, TETROMINOS
+from controlador_manos import crear_controlador_manos_o_nada
 # ============================================================
 #                      CONFIGURACIÓN VISUAL
 # ============================================================
