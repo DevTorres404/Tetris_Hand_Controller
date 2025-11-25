@@ -216,34 +216,35 @@ class GestorAudio:
     
     def _cargar_sonidos(self):
         """Carga todos los archivos de sonido."""
-        try:
-            self.sonidos['mover'] = pygame.mixer.Sound(
-                os.path.join(DIRECTORIO_SONIDOS, "move.wav")
-            )
-            self.sonidos['rotar'] = pygame.mixer.Sound(
-                os.path.join(DIRECTORIO_SONIDOS, "rotate.wav")
-            )
-            self.sonidos['fijar'] = pygame.mixer.Sound(
-                os.path.join(DIRECTORIO_SONIDOS, "piece_landed.wav")
-            )
-            self.sonidos['linea'] = pygame.mixer.Sound(
-                os.path.join(DIRECTORIO_SONIDOS, "line.wav")
-            )
-            self.sonidos['tetris'] = pygame.mixer.Sound(
-                os.path.join(DIRECTORIO_SONIDOS, "4_lines.wav")
-            )
-            self.sonidos['nivel'] = pygame.mixer.Sound(
-                os.path.join(DIRECTORIO_SONIDOS, "level_up.wav")
-            )
-            self.sonidos['game_over'] = pygame.mixer.Sound(
-                os.path.join(DIRECTORIO_SONIDOS, "game_over.wav")
-            )
-            
-            pygame.mixer.music.load(
-                os.path.join(DIRECTORIO_SONIDOS, "background.wav")
-            )
-        except Exception as e:
-            print(f"Error cargando sonidos: {e}")
+        # Buscar carpeta de sonidos en el directorio del script
+        directorio_actual = os.path.dirname(os.path.abspath(__file__))
+        ruta_sonidos = os.path.join(directorio_actual, DIRECTORIO_SONIDOS)
+        
+        self.sonidos['mover'] = pygame.mixer.Sound(
+            os.path.join(ruta_sonidos, "move.wav")
+        )
+        self.sonidos['rotar'] = pygame.mixer.Sound(
+            os.path.join(ruta_sonidos, "rotate.wav")
+        )
+        self.sonidos['fijar'] = pygame.mixer.Sound(
+            os.path.join(ruta_sonidos, "piece_landed.wav")
+        )
+        self.sonidos['linea'] = pygame.mixer.Sound(
+            os.path.join(ruta_sonidos, "line.wav")
+        )
+        self.sonidos['tetris'] = pygame.mixer.Sound(
+            os.path.join(ruta_sonidos, "4_lines.wav")
+        )
+        self.sonidos['nivel'] = pygame.mixer.Sound(
+            os.path.join(ruta_sonidos, "level_up.wav")
+        )
+        self.sonidos['game_over'] = pygame.mixer.Sound(
+            os.path.join(ruta_sonidos, "game_over.wav")
+        )
+        
+        pygame.mixer.music.load(
+            os.path.join(ruta_sonidos, "background.wav")
+        )
     
     def reproducir(self, nombre):
         """Reproduce un efecto de sonido."""
