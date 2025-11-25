@@ -44,7 +44,7 @@ COLOR_TEXTO_SECUNDARIO = (180, 190, 210)  # Gris claro azulado
 COLOR_ACENTO = (100, 200, 255)  # Azul cielo
 
 # Configuración de sonidos
-DIRECTORIO_SONIDOS = r"C:\Users\0803570563\Documents\PROYECTO_FUNCIONAL\Sound_Effects"
+DIRECTORIO_SONIDOS ="Sound_Effects"
 
 
 GRAVEDAD_BASE_S = 0.8
