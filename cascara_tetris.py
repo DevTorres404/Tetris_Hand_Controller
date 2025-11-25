@@ -43,7 +43,7 @@ COLOR_TEXTO_PRINCIPAL = (245, 250, 255)  # Blanco brillante
 COLOR_TEXTO_SECUNDARIO = (180, 190, 210)  # Gris claro azulado
 COLOR_ACENTO = (100, 200, 255)  # Azul cielo
 
-# Configuración de sonidos
+# Configuración de los sonidos
 DIRECTORIO_SONIDOS = "Sound_Effects"
 
 GRAVEDAD_BASE_S = 0.8
