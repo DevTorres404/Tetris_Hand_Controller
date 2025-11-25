@@ -44,8 +44,7 @@ COLOR_TEXTO_SECUNDARIO = (180, 190, 210)  # Gris claro azulado
 COLOR_ACENTO = (100, 200, 255)  # Azul cielo
 
 # Configuración de sonidos
-DIRECTORIO_SONIDOS ="Sound_Effects"
-
+DIRECTORIO_SONIDOS = os.path.join(os.path.dirname(__file__), "Sound_Effects")
 
 GRAVEDAD_BASE_S = 0.8
 INTERVALO_CAIDA_SUAVE_S = 0.2
