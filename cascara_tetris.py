@@ -215,36 +215,23 @@ class GestorAudio:
         self._cargar_sonidos()
     
     def _cargar_sonidos(self):
-        """Carga todos los archivos de sonido."""
-        # Buscar carpeta de sonidos en el directorio del script
-        directorio_actual = os.path.dirname(os.path.abspath(__file__))
-        ruta_sonidos = os.path.join(directorio_actual, DIRECTORIO_SONIDOS)
-        
-        self.sonidos['mover'] = pygame.mixer.Sound(
-            os.path.join(ruta_sonidos, "move.wav")
-        )
-        self.sonidos['rotar'] = pygame.mixer.Sound(
-            os.path.join(ruta_sonidos, "rotate.wav")
-        )
-        self.sonidos['fijar'] = pygame.mixer.Sound(
-            os.path.join(ruta_sonidos, "piece_landed.wav")
-        )
-        self.sonidos['linea'] = pygame.mixer.Sound(
-            os.path.join(ruta_sonidos, "line.wav")
-        )
-        self.sonidos['tetris'] = pygame.mixer.Sound(
-            os.path.join(ruta_sonidos, "4_lines.wav")
-        )
-        self.sonidos['nivel'] = pygame.mixer.Sound(
-            os.path.join(ruta_sonidos, "level_up.wav")
-        )
-        self.sonidos['game_over'] = pygame.mixer.Sound(
-            os.path.join(ruta_sonidos, "game_over.wav")
-        )
-        
-        pygame.mixer.music.load(
-            os.path.join(ruta_sonidos, "background.wav")
-        )
+        """Carga todos los archivos de sonido """
+        try:
+            # Usa solo el nombre de carpeta relativo
+            self.sonidos['mover'] = pygame.mixer.Sound(f"{DIRECTORIO_SONIDOS}/move.wav")
+            self.sonidos['rotar'] = pygame.mixer.Sound(f"{DIRECTORIO_SONIDOS}/rotate.wav")
+            self.sonidos['fijar'] = pygame.mixer.Sound(f"{DIRECTORIO_SONIDOS}/piece_landed.wav")
+            self.sonidos['linea'] = pygame.mixer.Sound(f"{DIRECTORIO_SONIDOS}/line.wav")
+            self.sonidos['tetris'] = pygame.mixer.Sound(f"{DIRECTORIO_SONIDOS}/4_lines.wav")
+            self.sonidos['nivel'] = pygame.mixer.Sound(f"{DIRECTORIO_SONIDOS}/level_up.wav")
+            self.sonidos['game_over'] = pygame.mixer.Sound(f"{DIRECTORIO_SONIDOS}/game_over.wav")
+            
+            pygame.mixer.music.load(f"{DIRECTORIO_SONIDOS}/background.wav")
+            print("Sonidos cargados correctamente")
+        except Exception as e:
+            print(f"No se pudieron cargar los sonidos: {e}")
+            print("El juego continuará sin audio.")
+            self.audio_disponible = False
     
     def reproducir(self, nombre):
         """Reproduce un efecto de sonido."""
