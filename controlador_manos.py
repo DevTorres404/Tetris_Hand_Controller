@@ -39,6 +39,15 @@ try:
 except Exception:
     MEDIAPIPE_DISPONIBLE = False
 
+def detectar_camara_funcional(max_indices=6):
+    import cv2
+    for i in range(max_indices):
+        cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
+        ok, _ = cap.read()
+        cap.release()
+        if ok:
+            return i
+    return None
 
 class ControladorMano:
     """Controlador de gestos de mano para Tetris."""
@@ -80,7 +89,12 @@ class ControladorMano:
         self.depurar = depurar
 
         # Cámara
-        self.cap = cv2.VideoCapture(indice_cam)
+        if indice_cam is None:
+            indice_cam = detectar_camara_funcional()
+        if indice_cam is None:
+            raise RuntimeError("No se encontró ninguna cámara disponible.")
+            
+        self.cap = cv2.VideoCapture(indice_cam, cv2.CAP_DSHOW)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, ancho)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, alto)
 
