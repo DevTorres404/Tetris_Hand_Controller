@@ -474,7 +474,7 @@ def main():
     pygame.mixer.pre_init(44100, -16, 2, 512)
     pygame.init()
     
-    mano = crear_controlador_manos_o_nada(mostrar_camara=True, espejo=False)
+    mano = crear_controlador_manos_o_nada(mostrar_camara=True, espejo=False, indice_cam=None)
     
     while True:
         reiniciar = ejecutar_juego(mano)
