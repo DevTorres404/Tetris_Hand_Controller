@@ -204,11 +204,9 @@ class RenderizadorTetris:
         self.pantalla.blit(estado, estado.get_rect(center=(cx, cy - 10)))
         self.pantalla.blit(ayuda, ayuda.get_rect(center=(cx, cy + 30)))
         pygame.display.flip()
+
 # ============================================================
-#                      GESTOR DE AUDIO
-# ============================================================
-# ============================================================
-#                      GESTOR DE AUDIO CORREGIDO
+#                      GESTOR DE AUDIO 
 # ============================================================
 class GestorAudio:
     """Maneja todos los efectos de sonido y música."""
