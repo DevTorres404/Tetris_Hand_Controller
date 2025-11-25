@@ -207,44 +207,83 @@ class RenderizadorTetris:
 # ============================================================
 #                      GESTOR DE AUDIO
 # ============================================================
+# ============================================================
+#                      GESTOR DE AUDIO CORREGIDO
+# ============================================================
 class GestorAudio:
     """Maneja todos los efectos de sonido y música."""
     
     def __init__(self):
         self.sonidos = {}
+        self.audio_disponible = True
         self._cargar_sonidos()
     
     def _cargar_sonidos(self):
-        """Carga todos los archivos de sonido """
+        """Carga todos los archivos de sonido con manejo robusto de errores"""
         try:
-            # Usa solo el nombre de carpeta relativo
-            self.sonidos['mover'] = pygame.mixer.Sound(f"{DIRECTORIO_SONIDOS}/move.wav")
-            self.sonidos['rotar'] = pygame.mixer.Sound(f"{DIRECTORIO_SONIDOS}/rotate.wav")
-            self.sonidos['fijar'] = pygame.mixer.Sound(f"{DIRECTORIO_SONIDOS}/piece_landed.wav")
-            self.sonidos['linea'] = pygame.mixer.Sound(f"{DIRECTORIO_SONIDOS}/line.wav")
-            self.sonidos['tetris'] = pygame.mixer.Sound(f"{DIRECTORIO_SONIDOS}/4_lines.wav")
-            self.sonidos['nivel'] = pygame.mixer.Sound(f"{DIRECTORIO_SONIDOS}/level_up.wav")
-            self.sonidos['game_over'] = pygame.mixer.Sound(f"{DIRECTORIO_SONIDOS}/game_over.wav")
+            # Obtener el directorio del script actual
+            directorio_base = os.path.dirname(os.path.abspath(__file__))
+            directorio_sonidos = os.path.join(directorio_base, DIRECTORIO_SONIDOS)
             
-            pygame.mixer.music.load(f"{DIRECTORIO_SONIDOS}/background.wav")
-            print("Sonidos cargados correctamente")
+            # Verificar que el directorio existe
+            if not os.path.exists(directorio_sonidos):
+                raise FileNotFoundError(f"No se encuentra el directorio: {directorio_sonidos}")
+            
+            # Cargar efectos de sonido
+            archivos_sonido = {
+                'mover': 'move.wav',
+                'rotar': 'rotate.wav',
+                'fijar': 'piece_landed.wav',
+                'linea': 'line.wav',
+                'tetris': '4_lines.wav',
+                'nivel': 'level_up.wav',
+                'game_over': 'game_over.wav'
+            }
+            
+            for nombre, archivo in archivos_sonido.items():
+                ruta_completa = os.path.join(directorio_sonidos, archivo)
+                if os.path.exists(ruta_completa):
+                    self.sonidos[nombre] = pygame.mixer.Sound(ruta_completa)
+                else:
+                    print(f"Advertencia: No se encuentra {archivo}")
+            
+            # Cargar música de fondo
+            ruta_musica = os.path.join(directorio_sonidos, 'background.wav')
+            if os.path.exists(ruta_musica):
+                pygame.mixer.music.load(ruta_musica)
+                print(f"Sonidos cargados correctamente desde: {directorio_sonidos}")
+            else:
+                print(f"Advertencia: No se encuentra background.wav")
+                self.audio_disponible = False
+                
         except Exception as e:
-            print(f"No se pudieron cargar los sonidos: {e}")
+            print(f"Error cargando sonidos: {e}")
+            print(f"Directorio buscado: {directorio_sonidos if 'directorio_sonidos' in locals() else DIRECTORIO_SONIDOS}")
             print("El juego continuará sin audio.")
             self.audio_disponible = False
     
     def reproducir(self, nombre):
         """Reproduce un efecto de sonido."""
-        if nombre in self.sonidos:
-            self.sonidos[nombre].play()
+        if self.audio_disponible and nombre in self.sonidos:
+            try:
+                self.sonidos[nombre].play()
+            except:
+                pass
     
     def iniciar_musica(self):
         """Inicia la música de fondo en bucle."""
-        pygame.mixer.music.play(-1)
+        if self.audio_disponible:
+            try:
+                pygame.mixer.music.play(-1)
+            except:
+                print("No se pudo iniciar la música de fondo")
     
     def detener_musica(self):
         """Detiene la música de fondo."""
-        pygame.mixer.music.stop()
+        try:
+            pygame.mixer.music.stop()
+        except:
+            pass
 
 # ============================================================
 #                    BUCLE PRINCIPAL DEL JUEGO
