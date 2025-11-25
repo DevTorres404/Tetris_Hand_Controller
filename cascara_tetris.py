@@ -208,63 +208,66 @@ class RenderizadorTetris:
 # ============================================================
 #                      GESTOR DE AUDIO 
 # ============================================================
+import urllib.request
+
 class GestorAudio:
-    """Maneja todos los efectos de sonido y música."""
-    
+    """Maneja todos los efectos de sonido y música, descargándolos automáticamente desde Google Drive si no existen."""
+
     def __init__(self):
         self.sonidos = {}
         self.audio_disponible = True
-        self._cargar_sonidos()
-    
-    def _cargar_sonidos(self):
-        """Carga todos los archivos de sonido desde el directorio actual"""
+        self._descargar_y_cargar_sonidos()
+
+    def _descargar_y_cargar_sonidos(self):
         try:
+            # Ruta donde está el script
             if '__file__' in globals():
                 directorio_script = os.path.dirname(os.path.abspath(__file__))
             else:
-                # Fallback si __file__ no está disponible
                 directorio_script = os.getcwd()
-            
+
             ruta_sonidos = os.path.join(directorio_script, DIRECTORIO_SONIDOS)
-            
-            print(f"Buscando sonidos en: {ruta_sonidos}")
-            
-            # Verificar que existe el directorio
+
+            # Crear la carpeta si no existe
             if not os.path.exists(ruta_sonidos):
-                raise FileNotFoundError(f"No existe el directorio: {ruta_sonidos}")
-            
-            # Cargar efectos de sonido
-            archivos_sonido = {
-                'mover': 'move.wav',
-                'rotar': 'rotate.wav',
-                'fijar': 'piece_landed.wav',
-                'linea': 'line.wav',
-                'tetris': '4_lines.wav',
-                'nivel': 'level_up.wav',
-                'game_over': 'game_over.wav'
+                os.makedirs(ruta_sonidos)
+
+            # IDs reales que me diste
+            archivos_drive = {
+                "4_lines.wav": "1PrLjw_9ifUBGyn0b_GnA6vH4pvSV5MTf",
+                "background.wav": "1STTE3Jc2SafYSBtKLvCEf2iiB2x5m8Ax",
+                "game_over.wav": "1XwHBkiUIH_fULbdm9BHbJAr4RPWKnnk0",
+                "level_up.wav": "19Jiu1UxFI4dHdnRYoek1vFQCRlJ1McRG",
+                "line.wav": "1-1fEUebLeSPlLdiLkcBSpQvGHuJJF3i4",
+                "move.wav": "1CeekfCUfvTqBuTl-_DeFpKOvgqhUTcxl",
+                "piece_landed.wav": "1E41kNjCikIqfVfS7mV1Tt4gXqYqx-qwu",
+                "rotate.wav": "1eNFH6FDJJaw5zqSsmaPv3JBOQ6RbvtL-"
             }
-            
-            for nombre, archivo in archivos_sonido.items():
-                ruta_completa = os.path.join(ruta_sonidos, archivo)
-                if os.path.exists(ruta_completa):
-                    self.sonidos[nombre] = pygame.mixer.Sound(ruta_completa)
+
+            # Descargar cada archivo si no existe
+            for nombre, file_id in archivos_drive.items():
+                url = f"https://drive.google.com/uc?export=download&id={file_id}"
+                destino = os.path.join(ruta_sonidos, nombre)
+
+                if not os.path.exists(destino):
+                    print(f"Descargando {nombre} desde Google Drive...")
+                    urllib.request.urlretrieve(url, destino)
+
+            # Cargar los sonidos en pygame
+            for nombre in archivos_drive.keys():
+                ruta = os.path.join(ruta_sonidos, nombre)
+
+                if nombre == "background.wav":
+                    pygame.mixer.music.load(ruta)
                 else:
-                    print(f"  ⚠ Advertencia: No se encontró {archivo}")
-            
-            # Cargar música de fondo
-            ruta_musica = os.path.join(ruta_sonidos, "background.wav")
-            if os.path.exists(ruta_musica):
-                pygame.mixer.music.load(ruta_musica)
-                print(f"✓ Sonidos cargados correctamente desde: {ruta_sonidos}")
-            else:
-                print(f"  ⚠ Advertencia: No se encontró background.wav")
-                
+                    self.sonidos[nombre] = pygame.mixer.Sound(ruta)
+
+            print("✓ Sonidos cargados correctamente desde Google Drive")
+
         except Exception as e:
-            print(f"⚠ Error cargando sonidos: {e}")
-            print("  El juego continuará sin audio.")
+            print(f"⚠ Error cargando sonidos desde Drive: {e}")
             self.audio_disponible = False
-            self.sonidos = {}
-    
+
     def reproducir(self, nombre):
         """Reproduce un efecto de sonido si está disponible."""
         if self.audio_disponible and nombre in self.sonidos:
