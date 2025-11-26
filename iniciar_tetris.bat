@@ -1,17 +1,5 @@
 @echo off
 title Instalando y ejecutando Tetris
-cls
-echo.
-echo  ╔════════════════════════════════════════════════════════════╗
-echo  ║                    TETRIS GAME                             ║
-echo  ║                                                            ║
-echo  ║           HECHO POR:                                       ║
-echo  ║           - Melanie Tomala                                 ║
-echo  ║           - Jean Cedeño                                    ║
-echo  ║           - Damian Torres                                  ║
-echo  ╚════════════════════════════════════════════════════════════╝
-echo.
-pause
 echo =========================================
 echo     Verificando si Python está instalado
 echo =========================================
