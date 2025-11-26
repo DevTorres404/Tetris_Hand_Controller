@@ -1,53 +1,64 @@
+# cascara_tetris.py 
 # =============================================================================
 #                    INTERFAZ Y PRESENTACIÓN DEL TETRIS
 # =============================================================================
 # Este módulo maneja toda la visualización, sonidos, controles y flujo de UI
-# usando pygame. Depende de Core_Tetris.py para la lógica del juego.
+# usando pygame. Depende de nucleo_tetris.py para la lógica del juego.
+# VERSIÓN MEJORADA: Cámara integrada en esquina superior derecha
 
 import pygame
 import sys
 import time
 import os
+import numpy as np
 from core_tetris import Motor, TETROMINOS
 from controlador_manos import crear_controlador_manos_o_nada
+
 # ============================================================
 #                      CONFIGURACIÓN VISUAL
 # ============================================================
 COLUMNAS, FILAS = 10, 20
-CELDA = 30
-ANCHO_LATERAL = 6 * CELDA
-ANCHO, ALTO = COLUMNAS * CELDA + ANCHO_LATERAL, FILAS * CELDA
+CELDA = 35  # Aumentado de 30 a 35 para mejor visibilidad
+ANCHO_LATERAL = 8 * CELDA  # Aumentado de 6 a 8 para más espacio lateral
+ANCHO, ALTO = COLUMNAS * CELDA + ANCHO_LATERAL, FILAS * CELDA + 40  # +40 margen superior/inferior
 FPS = 30
 
+# Configuración de cámara en pantalla
+CAMARA_ANCHO = 280  # Aumentado de 240 a 280
+CAMARA_ALTO = 210   # Aumentado de 180 a 210
+CAMARA_MARGEN = 15  # Aumentado de 10 a 15
+CAMARA_POS_X = COLUMNAS * CELDA + 25  # Posicionada justo después del tablero
+CAMARA_POS_Y = CAMARA_MARGEN + 20  # +20 para margen superior
 
-NEGRO = (15, 15, 25)  # Azul oscuro profundo
-CUADRICULA = (60, 65, 90)  # Gris azulado
-BLANCO = (245, 250, 255)  # Blanco con tinte azul
-GRIS = (75, 80, 100)  # Gris medio
-
+# Colores - ESQUEMA MODERNO Y VIBRANTE
+NEGRO = (15, 15, 25)
+CUADRICULA = (60, 65, 90)
+BLANCO = (245, 250, 255)
+GRIS = (75, 80, 100)
 
 COLORES_PIEZAS = {
-    "I": (0, 240, 255),      # Cyan brillante
-    "O": (255, 215, 0),      # Oro
-    "T": (200, 50, 255),     # Púrpura neón
-    "S": (50, 255, 100),     # Verde esmeralda
-    "Z": (255, 60, 100),     # Rosa neón
-    "J": (70, 130, 255),     # Azul eléctrico
-    "L": (255, 140, 40),     # Naranja ardiente
+    "I": (0, 240, 255),
+    "O": (255, 215, 0),
+    "T": (200, 50, 255),
+    "S": (50, 255, 100),
+    "Z": (255, 60, 100),
+    "J": (70, 130, 255),
+    "L": (255, 140, 40),
 }
 
+COLOR_FONDO_MENU = (20, 25, 40)
+COLOR_OVERLAY = (10, 15, 30, 200)
+COLOR_TEXTO_PRINCIPAL = (245, 250, 255)
+COLOR_TEXTO_SECUNDARIO = (180, 190, 210)
+COLOR_ACENTO = (100, 200, 255)
 
-COLOR_FONDO_MENU = (20, 25, 40)  # Azul oscuro
-COLOR_OVERLAY = (10, 15, 30, 200)  # Semi-transparente
-COLOR_TEXTO_PRINCIPAL = (245, 250, 255)  # Blanco brillante
-COLOR_TEXTO_SECUNDARIO = (180, 190, 210)  # Gris claro azulado
-COLOR_ACENTO = (100, 200, 255)  # Azul cielo
+# Configuración de sonidos
+DIRECTORIO_SONIDOS = r"C:\Users\0803570563\Documents\PROYECTO_FUNCIONAL\Sound_Effects"
 
-# Configuración de los sonidos
-DIRECTORIO_SONIDOS = "Sound_Effects"
-
+# Temporización
 GRAVEDAD_BASE_S = 0.8
 INTERVALO_CAIDA_SUAVE_S = 0.2
+
 # ============================================================
 #                     RENDERIZADO
 # ============================================================
@@ -59,41 +70,89 @@ class RenderizadorTetris:
         self.fuente = pygame.font.SysFont("Consolas", 16)
         self.fuente_grande = pygame.font.SysFont("Consolas", 36, bold=True)
         self.fuente_media = pygame.font.SysFont("Consolas", 22)
+        self.fuente_pequena = pygame.font.SysFont("Consolas", 12)
     
     def dibujar_tablero(self, tablero):
         """Dibuja el fondo y celdas del tablero."""
         self.pantalla.fill(NEGRO)
+        margen_y = 20  # Margen superior
         for y in range(FILAS):
             for x in range(COLUMNAS):
-                rect = pygame.Rect(x * CELDA, y * CELDA, CELDA, CELDA)
+                rect = pygame.Rect(x * CELDA, y * CELDA + margen_y, CELDA, CELDA)
                 if tablero[y][x] is not None:
                     color = COLORES_PIEZAS.get(tablero[y][x], BLANCO)
-                    # Dibujar celda con efecto de brillo
                     pygame.draw.rect(self.pantalla, color, rect)
-                    # Borde interno más oscuro para profundidad
                     color_oscuro = tuple(max(0, c - 40) for c in color)
                     pygame.draw.rect(self.pantalla, color_oscuro, rect, 2)
                 else:
-                    # Cuadrícula sutil para celdas vacías
                     pygame.draw.rect(self.pantalla, CUADRICULA, rect, 1)
     
     def dibujar_pieza(self, pieza):
         """Dibuja la pieza actual en movimiento con efecto de brillo."""
         if pieza is None:
             return
+        margen_y = 20  # Margen superior
         color = COLORES_PIEZAS.get(pieza.tipo, BLANCO)
         for (x, y) in pieza.celdas():
             if y >= 0:
-                rect = pygame.Rect(x * CELDA, y * CELDA, CELDA, CELDA)
-                # Efecto de brillo con borde más claro
+                rect = pygame.Rect(x * CELDA, y * CELDA + margen_y, CELDA, CELDA)
                 pygame.draw.rect(self.pantalla, color, rect)
                 color_claro = tuple(min(255, c + 30) for c in color)
                 pygame.draw.rect(self.pantalla, color_claro, rect, 3)
     
+    def dibujar_camara(self, frame_bgr):
+        """Dibuja el frame de la cámara en la esquina superior derecha."""
+        if frame_bgr is None:
+            return
+        
+        try:
+            # Convertir de BGR (OpenCV) a RGB
+            frame_rgb = frame_bgr[:, :, ::-1]
+            
+            # Redimensionar si es necesario
+            h, w = frame_rgb.shape[:2]
+            if w != CAMARA_ANCHO or h != CAMARA_ALTO:
+                import cv2
+                frame_rgb = cv2.resize(frame_rgb, (CAMARA_ANCHO, CAMARA_ALTO))
+            
+            # Convertir a surface de pygame
+            frame_surface = pygame.surfarray.make_surface(
+                np.transpose(frame_rgb, (1, 0, 2))
+            )
+            
+            # Dibujar borde
+            borde_rect = pygame.Rect(
+                CAMARA_POS_X - 2, 
+                CAMARA_POS_Y - 2, 
+                CAMARA_ANCHO + 4, 
+                CAMARA_ALTO + 4
+            )
+            pygame.draw.rect(self.pantalla, COLOR_ACENTO, borde_rect, 2)
+            
+            # Dibujar frame
+            self.pantalla.blit(frame_surface, (CAMARA_POS_X, CAMARA_POS_Y))
+            
+            # Etiqueta "CÁMARA"
+            etiqueta = self.fuente_pequena.render("CÁMARA", True, COLOR_ACENTO)
+            etiqueta_rect = etiqueta.get_rect()
+            etiqueta_rect.centerx = CAMARA_POS_X + CAMARA_ANCHO // 2
+            etiqueta_rect.bottom = CAMARA_POS_Y - 4
+            self.pantalla.blit(etiqueta, etiqueta_rect)
+            
+        except Exception as e:
+            # Si falla, mostrar un placeholder
+            rect = pygame.Rect(CAMARA_POS_X, CAMARA_POS_Y, CAMARA_ANCHO, CAMARA_ALTO)
+            pygame.draw.rect(self.pantalla, (40, 40, 60), rect)
+            pygame.draw.rect(self.pantalla, COLOR_ACENTO, rect, 2)
+            texto = self.fuente_pequena.render("Cámara no disponible", True, COLOR_TEXTO_SECUNDARIO)
+            texto_rect = texto.get_rect(center=rect.center)
+            self.pantalla.blit(texto, texto_rect)
+    
     def dibujar_hud(self, estado, mano_activa):
         """Dibuja el panel lateral con información."""
-        x_base = COLUMNAS * CELDA + 8
-        y = 8
+        x_base = COLUMNAS * CELDA + 15  # Más separación del tablero
+        # Comenzar más abajo para dejar espacio a la cámara
+        y = CAMARA_POS_Y + CAMARA_ALTO + 30
         
         # Título con color de acento
         titulo_lineas = [
@@ -107,42 +166,43 @@ class RenderizadorTetris:
             txt_valor = self.fuente.render(valor, True, color_valor)
             self.pantalla.blit(txt_label, (x_base, y))
             self.pantalla.blit(txt_valor, (x_base + txt_label.get_width(), y))
-            y += self.fuente.get_linesize() + 2
+            y += self.fuente.get_linesize() + 4  # Aumentado espaciado
         
-        y += 8
+        y += 12  # Más espacio antes del estado de manos
         
         # Estado de manos con color
         estado_mano = "Manos: ON" if mano_activa else "Manos: OFF"
         color_mano = (50, 255, 100) if mano_activa else (255, 100, 100)
         txt = self.fuente.render(estado_mano, True, color_mano)
         self.pantalla.blit(txt, (x_base, y))
-        y += self.fuente.get_linesize() + 8
+        y += self.fuente.get_linesize() + 12
         
         # Controles con colores
         lineas_info = [
-            ("CONTROLES:", COLOR_ACENTO),
+            ("TECLADO:", COLOR_ACENTO),
             ("← → : Mover", COLOR_TEXTO_PRINCIPAL),
             ("↑ X : Rotar", COLOR_TEXTO_PRINCIPAL),
             ("↓ : Caída Suave", COLOR_TEXTO_PRINCIPAL),
             ("SPACE : Caída Dura", COLOR_TEXTO_PRINCIPAL),
             ("", COLOR_TEXTO_PRINCIPAL),
             ("GESTOS:", COLOR_ACENTO),
-            ("Pulgar ↑ L/R : Mover", COLOR_TEXTO_SECUNDARIO),
-            ("Solo Meñique : Rotar", COLOR_TEXTO_SECUNDARIO),
-            ("Pulgar ↓ : Suave", COLOR_TEXTO_SECUNDARIO),
-            ("Cualquier dedo libre : Dura", COLOR_TEXTO_SECUNDARIO),
+            ("👍↑ L/R : Mover", COLOR_TEXTO_SECUNDARIO),
+            ("Solo 🤙 : Rotar", COLOR_TEXTO_SECUNDARIO),
+            ("👍↓ : Suave", COLOR_TEXTO_SECUNDARIO),
+            ("☝️ libre : Dura", COLOR_TEXTO_SECUNDARIO),
         ]
         
         for linea, color in lineas_info:
             txt = self.fuente.render(linea, True, color)
             self.pantalla.blit(txt, (x_base, y))
-            y += self.fuente.get_linesize() + 2
+            y += self.fuente.get_linesize() + 3  # Aumentado espaciado
     
     def barrido_game_over(self, tablero):
         """Efecto visual de barrido al terminar el juego."""
         self.dibujar_tablero(tablero)
         pygame.display.flip()
         
+        margen_y = 20  # Margen superior
         retraso_ms = 12
         for y in range(FILAS - 1, -1, -1):
             for x in range(COLUMNAS):
@@ -151,8 +211,7 @@ class RenderizadorTetris:
                         pygame.quit()
                         sys.exit()
                 
-                rect = pygame.Rect(x * CELDA, y * CELDA, CELDA, CELDA)
-                # Efecto de desvanecimiento con color oscuro
+                rect = pygame.Rect(x * CELDA, y * CELDA + margen_y, CELDA, CELDA)
                 pygame.draw.rect(self.pantalla, (40, 40, 60), rect)
                 pygame.draw.rect(self.pantalla, CUADRICULA, rect, 1)
                 pygame.display.update(rect)
@@ -164,7 +223,6 @@ class RenderizadorTetris:
         superposicion.fill(COLOR_OVERLAY)
         self.pantalla.blit(superposicion, (0, 0))
         
-        # Título con color vibrante
         titulo = self.fuente_grande.render("GAME OVER", True, (255, 100, 100))
         stats = self.fuente_media.render(
             f"Puntaje: {puntaje}   Líneas: {lineas}   Nivel: {nivel}",
@@ -195,7 +253,6 @@ class RenderizadorTetris:
         
         self.pantalla.fill(COLOR_FONDO_MENU)
         
-        # Título con gradiente simulado
         titulo = self.fuente_grande.render("TETRIS", True, COLOR_ACENTO)
         estado = self.fuente.render(mensaje, True, COLOR_TEXTO_SECUNDARIO)
         ayuda = self.fuente.render("Presiona ENTER para comenzar", True, (100, 255, 150))
@@ -206,91 +263,59 @@ class RenderizadorTetris:
         pygame.display.flip()
 
 # ============================================================
-#                      GESTOR DE AUDIO 
+#                      GESTOR DE AUDIO
 # ============================================================
-import urllib.request
-
 class GestorAudio:
-    """Maneja todos los efectos de sonido y música, descargándolos automáticamente desde Google Drive si no existen."""
-
+    """Maneja todos los efectos de sonido y música."""
+    
     def __init__(self):
         self.sonidos = {}
-        self.audio_disponible = True
-        self._descargar_y_cargar_sonidos()
-
-    def _descargar_y_cargar_sonidos(self):
+        self._cargar_sonidos()
+    
+    def _cargar_sonidos(self):
+        """Carga todos los archivos de sonido."""
         try:
-            # Ruta donde está el script
-            if '__file__' in globals():
-                directorio_script = os.path.dirname(os.path.abspath(__file__))
-            else:
-                directorio_script = os.getcwd()
-
-            ruta_sonidos = os.path.join(directorio_script, DIRECTORIO_SONIDOS)
-
-            # Crear la carpeta si no existe
-            if not os.path.exists(ruta_sonidos):
-                os.makedirs(ruta_sonidos)
-
-            # IDs reales que me diste
-            archivos_drive = {
-                "4_lines.wav": "1PrLjw_9ifUBGyn0b_GnA6vH4pvSV5MTf",
-                "background.wav": "1STTE3Jc2SafYSBtKLvCEf2iiB2x5m8Ax",
-                "game_over.wav": "1XwHBkiUIH_fULbdm9BHbJAr4RPWKnnk0",
-                "level_up.wav": "19Jiu1UxFI4dHdnRYoek1vFQCRlJ1McRG",
-                "line.wav": "1-1fEUebLeSPlLdiLkcBSpQvGHuJJF3i4",
-                "move.wav": "1CeekfCUfvTqBuTl-_DeFpKOvgqhUTcxl",
-                "piece_landed.wav": "1E41kNjCikIqfVfS7mV1Tt4gXqYqx-qwu",
-                "rotate.wav": "1eNFH6FDJJaw5zqSsmaPv3JBOQ6RbvtL-"
-            }
-
-            # Descargar cada archivo si no existe
-            for nombre, file_id in archivos_drive.items():
-                url = f"https://drive.google.com/uc?export=download&id={file_id}"
-                destino = os.path.join(ruta_sonidos, nombre)
-
-                if not os.path.exists(destino):
-                    print(f"Descargando {nombre} desde Google Drive...")
-                    urllib.request.urlretrieve(url, destino)
-
-            # Cargar los sonidos en pygame
-            for nombre in archivos_drive.keys():
-                ruta = os.path.join(ruta_sonidos, nombre)
-
-                if nombre == "background.wav":
-                    pygame.mixer.music.load(ruta)
-                else:
-                    self.sonidos[nombre] = pygame.mixer.Sound(ruta)
-
-            print("✓ Sonidos cargados correctamente desde Google Drive")
-
+            self.sonidos['mover'] = pygame.mixer.Sound(
+                os.path.join(DIRECTORIO_SONIDOS, "move.wav")
+            )
+            self.sonidos['rotar'] = pygame.mixer.Sound(
+                os.path.join(DIRECTORIO_SONIDOS, "rotate.wav")
+            )
+            self.sonidos['fijar'] = pygame.mixer.Sound(
+                os.path.join(DIRECTORIO_SONIDOS, "piece_landed.wav")
+            )
+            self.sonidos['linea'] = pygame.mixer.Sound(
+                os.path.join(DIRECTORIO_SONIDOS, "line.wav")
+            )
+            self.sonidos['tetris'] = pygame.mixer.Sound(
+                os.path.join(DIRECTORIO_SONIDOS, "4_lines.wav")
+            )
+            self.sonidos['nivel'] = pygame.mixer.Sound(
+                os.path.join(DIRECTORIO_SONIDOS, "level_up.wav")
+            )
+            self.sonidos['game_over'] = pygame.mixer.Sound(
+                os.path.join(DIRECTORIO_SONIDOS, "game_over.wav")
+            )
+            
+            pygame.mixer.music.load(
+                os.path.join(DIRECTORIO_SONIDOS, "background.wav")
+            )
         except Exception as e:
-            print(f"⚠ Error cargando sonidos desde Drive: {e}")
-            self.audio_disponible = False
-
+            print(f"Error cargando sonidos: {e}")
+    
     def reproducir(self, nombre):
-        """Reproduce un efecto de sonido si está disponible."""
-        if self.audio_disponible and nombre in self.sonidos:
-            try:
-                self.sonidos[nombre].play()
-            except:
-                pass
+        """Reproduce un efecto de sonido."""
+        if nombre in self.sonidos:
+            self.sonidos[nombre].play()
     
     def iniciar_musica(self):
-        """Inicia la música de fondo en bucle si está disponible."""
-        if self.audio_disponible:
-            try:
-                pygame.mixer.music.play(-1)
-            except Exception as e:
-                print(f"⚠ No se pudo iniciar la música: {e}")
+        """Inicia la música de fondo en bucle."""
+        pygame.mixer.music.play(-1)
     
     def detener_musica(self):
         """Detiene la música de fondo."""
-        if self.audio_disponible:
-            try:
-                pygame.mixer.music.stop()
-            except:
-                pass
+        pygame.mixer.music.stop()
+
 # ============================================================
 #                    BUCLE PRINCIPAL DEL JUEGO
 # ============================================================
@@ -306,7 +331,7 @@ def ejecutar_juego(mano=None):
     audio = GestorAudio()
     
     # Mostrar pantalla de carga
-    mensaje = ("Iniciando cámara..." if mano else "Modo solo teclado")
+    mensaje = ("Control por gestos activado" if mano else "Modo solo teclado")
     render.pantalla_carga(mensaje, mano is not None)
     
     # Esperar ENTER
@@ -329,7 +354,6 @@ def ejecutar_juego(mano=None):
     caida_suave_mano = False
     ultima_caida_suave = time.time()
     
-    # Repetición de teclas
     mover_izq = mover_der = False
     retraso_repeticion = 0.15
     ultimo_mov = 0.0
@@ -375,7 +399,6 @@ def ejecutar_juego(mano=None):
                     filas = motor.caida_dura()
                     audio.reproducir('fijar')
                     
-                    # Actualizar puntaje y nivel
                     estado = motor.obtener_estado()
                     if estado['lineas'] >= 4:
                         audio.reproducir('tetris')
@@ -396,10 +419,16 @@ def ejecutar_juego(mano=None):
                 elif event.key == pygame.K_DOWN:
                     caida_suave_teclado = False
         
-        # 2) PROCESAR INPUT DE MANOS
+        # 2) PROCESAR INPUT DE MANOS Y OBTENER FRAME
+        frame_camara = None
         if mano is not None:
-            # ¡CORREGIDO! Ahora capturamos caida_dura_borde
             dir_mov, caida_suave_m, rotar_borde, caida_dura_borde = mano.consultar()
+            
+            # Obtener frame actual de la cámara
+            try:
+                frame_camara = mano.ultimo_frame
+            except:
+                frame_camara = None
             
             # Movimiento lateral
             if dir_mov == -1:
@@ -414,12 +443,11 @@ def ejecutar_juego(mano=None):
                 if motor.rotar(1):
                     audio.reproducir('rotar')
             
-            #  Caída dura con gesto 
+            # Caída dura con gesto
             if caida_dura_borde:
                 filas = motor.caida_dura()
                 audio.reproducir('fijar')
                 
-                # Actualizar puntaje y nivel
                 estado = motor.obtener_estado()
                 lineas_nuevas = estado['lineas']
                 
@@ -460,7 +488,6 @@ def ejecutar_juego(mano=None):
         
         if ahora - ultima_gravedad >= gravedad_s:
             if not motor.caida_suave():
-                # Pieza no pudo caer, fijarla
                 estado_anterior = motor.obtener_estado()
                 motor._fijar_pieza()
                 audio.reproducir('fijar')
@@ -484,6 +511,11 @@ def ejecutar_juego(mano=None):
         render.dibujar_tablero(estado['tablero'])
         render.dibujar_pieza(estado['pieza_actual'])
         render.dibujar_hud(estado, mano is not None)
+        
+        # Dibujar cámara si está disponible
+        if mano is not None and frame_camara is not None:
+            render.dibujar_camara(frame_camara)
+        
         pygame.display.flip()
     
     # GAME OVER
@@ -506,7 +538,8 @@ def main():
     pygame.mixer.pre_init(44100, -16, 2, 512)
     pygame.init()
     
-    mano = crear_controlador_manos_o_nada(mostrar_camara=True, espejo=False, indice_cam=None)
+
+    mano = crear_controlador_manos_o_nada(mostrar_camara=False, espejo=False)
     
     while True:
         reiniciar = ejecutar_juego(mano)
