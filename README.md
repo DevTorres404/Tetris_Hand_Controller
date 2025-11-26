@@ -9,7 +9,7 @@ Este proyecto es una implementación moderna del clásico juego Tetris, desarrol
 *   **Interfaz Moderna**: Gráficos vibrantes, efectos de partículas (brillo en piezas), y un HUD limpio.
 *   **Cámara Integrada**: Visualización en tiempo real de tu cámara y el estado de detección de gestos dentro del juego.
 *   **Audio Inmersivo**: Efectos de sonido para movimientos, rotaciones, líneas completadas y música de fondo (descarga automática de assets).
-*   **Sistema de Puntuación**: Puntuación estándar de Tetris con bonificaciones por caída dura y limpieza de múltiples líneas.
+*   **Sistema de Puntuación**: Puntuación estándar de Tetris 
 
 ## Requisitos
 
