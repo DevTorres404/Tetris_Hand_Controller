@@ -10,6 +10,7 @@ import pygame
 import sys
 import time
 import os
+import urllib.request
 import numpy as np
 from core_tetris import Motor, TETROMINOS
 from controlador_manos import crear_controlador_manos_o_nada
@@ -53,7 +54,7 @@ COLOR_TEXTO_SECUNDARIO = (180, 190, 210)
 COLOR_ACENTO = (100, 200, 255)
 
 # Configuración de sonidos
-DIRECTORIO_SONIDOS = r"C:\Users\0803570563\Documents\PROYECTO_FUNCIONAL\Sound_Effects"
+DIRECTORIO_SONIDOS = "Sound_Effects"
 
 # Temporización
 GRAVEDAD_BASE_S = 0.8
@@ -266,42 +267,71 @@ class RenderizadorTetris:
 #                      GESTOR DE AUDIO
 # ============================================================
 class GestorAudio:
-    """Maneja todos los efectos de sonido y música."""
-    
+    """Maneja todos los efectos de sonido y música, descargándolos automáticamente desde Google Drive si no existen."""
+
     def __init__(self):
         self.sonidos = {}
-        self._cargar_sonidos()
-    
-    def _cargar_sonidos(self):
-        """Carga todos los archivos de sonido."""
+        self.audio_disponible = True
+        self._descargar_y_cargar_sonidos()
+
+    def _descargar_y_cargar_sonidos(self):
         try:
-            self.sonidos['mover'] = pygame.mixer.Sound(
-                os.path.join(DIRECTORIO_SONIDOS, "move.wav")
-            )
-            self.sonidos['rotar'] = pygame.mixer.Sound(
-                os.path.join(DIRECTORIO_SONIDOS, "rotate.wav")
-            )
-            self.sonidos['fijar'] = pygame.mixer.Sound(
-                os.path.join(DIRECTORIO_SONIDOS, "piece_landed.wav")
-            )
-            self.sonidos['linea'] = pygame.mixer.Sound(
-                os.path.join(DIRECTORIO_SONIDOS, "line.wav")
-            )
-            self.sonidos['tetris'] = pygame.mixer.Sound(
-                os.path.join(DIRECTORIO_SONIDOS, "4_lines.wav")
-            )
-            self.sonidos['nivel'] = pygame.mixer.Sound(
-                os.path.join(DIRECTORIO_SONIDOS, "level_up.wav")
-            )
-            self.sonidos['game_over'] = pygame.mixer.Sound(
-                os.path.join(DIRECTORIO_SONIDOS, "game_over.wav")
-            )
-            
-            pygame.mixer.music.load(
-                os.path.join(DIRECTORIO_SONIDOS, "background.wav")
-            )
+            # Ruta donde está el script
+            if '__file__' in globals():
+                directorio_script = os.path.dirname(os.path.abspath(__file__))
+            else:
+                directorio_script = os.getcwd()
+
+            ruta_sonidos = os.path.join(directorio_script, DIRECTORIO_SONIDOS)
+
+            # Crear la carpeta
+            if not os.path.exists(ruta_sonidos):
+                os.makedirs(ruta_sonidos)
+
+            # IDs de los archivos drive
+            archivos_drive = {
+                "4_lines.wav": "1PrLjw_9ifUBGyn0b_GnA6vH4pvSV5MTf",
+                "background.wav": "1STTE3Jc2SafYSBtKLvCEf2iiB2x5m8Ax",
+                "game_over.wav": "1XwHBkiUIH_fULbdm9BHbJAr4RPWKnnk0",
+                "level_up.wav": "19Jiu1UxFI4dHdnRYoek1vFQCRlJ1McRG",
+                "line.wav": "1-1fEUebLeSPlLdiLkcBSpQvGHuJJF3i4",
+                "move.wav": "1CeekfCUfvTqBuTl-_DeFpKOvgqhUTcxl",
+                "piece_landed.wav": "1E41kNjCikIqfVfS7mV1Tt4gXqYqx-qwu",
+                "rotate.wav": "1eNFH6FDJJaw5zqSsmaPv3JBOQ6RbvtL-"
+            }
+
+            # Descargar cada archivo si no existe
+            for nombre, file_id in archivos_drive.items():
+                url = f"https://drive.google.com/uc?export=download&id={file_id}"
+                destino = os.path.join(ruta_sonidos, nombre)
+
+                if not os.path.exists(destino):
+                    print(f"Descargando {nombre} desde Google Drive...")
+                    urllib.request.urlretrieve(url, destino)
+
+            # Cargar los sonidos en pygame
+            for nombre in archivos_drive.keys():
+                ruta = os.path.join(ruta_sonidos, nombre)
+
+                if nombre == "background.wav":
+                    pygame.mixer.music.load(ruta)
+                else:
+                    self.sonidos[nombre] = pygame.mixer.Sound(ruta)
+
+            print("✓ Sonidos cargados correctamente desde Google Drive")
+
         except Exception as e:
-            print(f"Error cargando sonidos: {e}")
+            print(f"⚠ Error cargando sonidos desde Drive: {e}")
+            self.audio_disponible = False
+
+    def reproducir(self, nombre):
+        """Reproduce un efecto de sonido si está disponible."""
+        if self.audio_disponible and nombre in self.sonidos:
+            try:
+                self.sonidos[nombre].play()
+            except:
+                pass
+
     
     def reproducir(self, nombre):
         """Reproduce un efecto de sonido."""
