@@ -115,7 +115,7 @@ class RenderizadorTetris:
                 import cv2
                 frame_rgb = cv2.resize(frame_rgb, (CAMARA_ANCHO, CAMARA_ALTO))
             
-            # Convertir a surface de pygame
+           
             frame_surface = pygame.surfarray.make_surface(
                 np.transpose(frame_rgb, (1, 0, 2))
             )
@@ -129,10 +129,10 @@ class RenderizadorTetris:
             )
             pygame.draw.rect(self.pantalla, COLOR_ACENTO, borde_rect, 2)
             
-            # Dibujar frame
+            
             self.pantalla.blit(frame_surface, (CAMARA_POS_X, CAMARA_POS_Y))
             
-            # Etiqueta "CÁMARA"
+           
             etiqueta = self.fuente_pequena.render("CÁMARA", True, COLOR_ACENTO)
             etiqueta_rect = etiqueta.get_rect()
             etiqueta_rect.centerx = CAMARA_POS_X + CAMARA_ANCHO // 2
@@ -140,7 +140,7 @@ class RenderizadorTetris:
             self.pantalla.blit(etiqueta, etiqueta_rect)
             
         except Exception as e:
-            # Si falla, mostrar un placeholder
+           
             rect = pygame.Rect(CAMARA_POS_X, CAMARA_POS_Y, CAMARA_ANCHO, CAMARA_ALTO)
             pygame.draw.rect(self.pantalla, (40, 40, 60), rect)
             pygame.draw.rect(self.pantalla, COLOR_ACENTO, rect, 2)
@@ -150,11 +150,11 @@ class RenderizadorTetris:
     
     def dibujar_hud(self, estado, mano_activa):
         """Dibuja el panel lateral con información."""
-        x_base = COLUMNAS * CELDA + 15  # Más separación del tablero
-        # Comenzar más abajo para dejar espacio a la cámara
+        x_base = COLUMNAS * CELDA + 15  
+       
         y = CAMARA_POS_Y + CAMARA_ALTO + 30
         
-        # Título con color de acento
+        
         titulo_lineas = [
             ("Puntaje: ", COLOR_TEXTO_SECUNDARIO, f"{estado['puntaje']}", COLOR_ACENTO),
             ("Líneas: ", COLOR_TEXTO_SECUNDARIO, f"{estado['lineas']}", COLOR_ACENTO),
@@ -166,9 +166,9 @@ class RenderizadorTetris:
             txt_valor = self.fuente.render(valor, True, color_valor)
             self.pantalla.blit(txt_label, (x_base, y))
             self.pantalla.blit(txt_valor, (x_base + txt_label.get_width(), y))
-            y += self.fuente.get_linesize() + 4  # Aumentado espaciado
+            y += self.fuente.get_linesize() + 4  
         
-        y += 12  # Más espacio antes del estado de manos
+        y += 12  
         
         # Estado de manos con color
         estado_mano = "Manos: ON" if mano_activa else "Manos: OFF"
@@ -186,10 +186,10 @@ class RenderizadorTetris:
             ("SPACE : Caída Dura", COLOR_TEXTO_PRINCIPAL),
             ("", COLOR_TEXTO_PRINCIPAL),
             ("GESTOS:", COLOR_ACENTO),
-            ("👍↑ L/R : Mover", COLOR_TEXTO_SECUNDARIO),
-            ("Solo 🤙 : Rotar", COLOR_TEXTO_SECUNDARIO),
-            ("👍↓ : Suave", COLOR_TEXTO_SECUNDARIO),
-            ("☝️ libre : Dura", COLOR_TEXTO_SECUNDARIO),
+            ("Pulgar↑ L/R : Mover", COLOR_TEXTO_SECUNDARIO),
+            ("Solo Meñique : Rotar", COLOR_TEXTO_SECUNDARIO),
+            ("Pulgar↓ : Suave", COLOR_TEXTO_SECUNDARIO),
+            ("Cualquier dedo libre : Dura", COLOR_TEXTO_SECUNDARIO),
         ]
         
         for linea, color in lineas_info:
@@ -538,7 +538,7 @@ def main():
     pygame.mixer.pre_init(44100, -16, 2, 512)
     pygame.init()
     
-
+    # IMPORTANTE: Pasar mostrar_camara=False para que no se abra ventana separada
     mano = crear_controlador_manos_o_nada(mostrar_camara=False, espejo=False)
     
     while True:
