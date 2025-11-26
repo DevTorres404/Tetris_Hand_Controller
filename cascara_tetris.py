@@ -19,17 +19,17 @@ from controlador_manos import crear_controlador_manos_o_nada
 #                      CONFIGURACIÓN VISUAL
 # ============================================================
 COLUMNAS, FILAS = 10, 20
-CELDA = 35  # Aumentado de 30 a 35 para mejor visibilidad
-ANCHO_LATERAL = 8 * CELDA  # Aumentado de 6 a 8 para más espacio lateral
-ANCHO, ALTO = COLUMNAS * CELDA + ANCHO_LATERAL, FILAS * CELDA + 40  # +40 margen superior/inferior
+CELDA = 35  
+ANCHO_LATERAL = 8 * CELDA 
+ANCHO, ALTO = COLUMNAS * CELDA + ANCHO_LATERAL, FILAS * CELDA + 40  
 FPS = 30
 
 # Configuración de cámara en pantalla
-CAMARA_ANCHO = 280  # Aumentado de 240 a 280
-CAMARA_ALTO = 210   # Aumentado de 180 a 210
-CAMARA_MARGEN = 15  # Aumentado de 10 a 15
-CAMARA_POS_X = COLUMNAS * CELDA + 25  # Posicionada justo después del tablero
-CAMARA_POS_Y = CAMARA_MARGEN + 20  # +20 para margen superior
+CAMARA_ANCHO = 280  
+CAMARA_ALTO = 210   
+CAMARA_MARGEN = 15  
+CAMARA_POS_X = COLUMNAS * CELDA + 25  
+CAMARA_POS_Y = CAMARA_MARGEN + 20  
 
 # Colores - ESQUEMA MODERNO Y VIBRANTE
 NEGRO = (15, 15, 25)
@@ -116,7 +116,6 @@ class RenderizadorTetris:
                 import cv2
                 frame_rgb = cv2.resize(frame_rgb, (CAMARA_ANCHO, CAMARA_ALTO))
             
-           
             frame_surface = pygame.surfarray.make_surface(
                 np.transpose(frame_rgb, (1, 0, 2))
             )
@@ -130,10 +129,8 @@ class RenderizadorTetris:
             )
             pygame.draw.rect(self.pantalla, COLOR_ACENTO, borde_rect, 2)
             
-            
             self.pantalla.blit(frame_surface, (CAMARA_POS_X, CAMARA_POS_Y))
             
-           
             etiqueta = self.fuente_pequena.render("CÁMARA", True, COLOR_ACENTO)
             etiqueta_rect = etiqueta.get_rect()
             etiqueta_rect.centerx = CAMARA_POS_X + CAMARA_ANCHO // 2
@@ -141,7 +138,6 @@ class RenderizadorTetris:
             self.pantalla.blit(etiqueta, etiqueta_rect)
             
         except Exception as e:
-           
             rect = pygame.Rect(CAMARA_POS_X, CAMARA_POS_Y, CAMARA_ANCHO, CAMARA_ALTO)
             pygame.draw.rect(self.pantalla, (40, 40, 60), rect)
             pygame.draw.rect(self.pantalla, COLOR_ACENTO, rect, 2)
@@ -152,9 +148,7 @@ class RenderizadorTetris:
     def dibujar_hud(self, estado, mano_activa):
         """Dibuja el panel lateral con información."""
         x_base = COLUMNAS * CELDA + 15  
-       
         y = CAMARA_POS_Y + CAMARA_ALTO + 30
-        
         
         titulo_lineas = [
             ("Puntaje: ", COLOR_TEXTO_SECUNDARIO, f"{estado['puntaje']}", COLOR_ACENTO),
@@ -301,27 +295,53 @@ class GestorAudio:
             }
 
             # Descargar cada archivo si no existe
+            archivos_descargados = 0
             for nombre, file_id in archivos_drive.items():
-                url = f"https://drive.google.com/uc?export=download&id={file_id}"
                 destino = os.path.join(ruta_sonidos, nombre)
 
                 if not os.path.exists(destino):
                     print(f"Descargando {nombre} desde Google Drive...")
-                    urllib.request.urlretrieve(url, destino)
+                    try:
+                        # URL correcta para descarga directa de Google Drive
+                        url = f"https://drive.google.com/uc?export=download&id={file_id}&confirm=t"
+                        
+                        # Usar headers para evitar bloqueos
+                        req = urllib.request.Request(url, headers={
+                            'User-Agent': 'Mozilla/5.0'
+                        })
+                        
+                        with urllib.request.urlopen(req, timeout=30) as response:
+                            with open(destino, 'wb') as out_file:
+                                out_file.write(response.read())
+                        
+                        archivos_descargados += 1
+                        print(f"✓ {nombre} descargado")
+                    except Exception as e:
+                        print(f"✗ Error descargando {nombre}: {e}")
 
             # Cargar los sonidos en pygame
+            sonidos_cargados = 0
             for nombre in archivos_drive.keys():
                 ruta = os.path.join(ruta_sonidos, nombre)
 
-                if nombre == "background.wav":
-                    pygame.mixer.music.load(ruta)
-                else:
-                    self.sonidos[nombre] = pygame.mixer.Sound(ruta)
+                if os.path.exists(ruta):
+                    try:
+                        if nombre == "background.wav":
+                            pygame.mixer.music.load(ruta)
+                        else:
+                            self.sonidos[nombre] = pygame.mixer.Sound(ruta)
+                        sonidos_cargados += 1
+                    except Exception as e:
+                        print(f"✗ Error cargando {nombre}: {e}")
 
-            print("✓ Sonidos cargados correctamente desde Google Drive")
+            if sonidos_cargados > 0:
+                print(f"✓ {sonidos_cargados}/{len(archivos_drive)} sonidos cargados correctamente")
+            else:
+                print("⚠ No se pudo cargar ningún sonido")
+                self.audio_disponible = False
 
         except Exception as e:
-            print(f"⚠ Error cargando sonidos desde Drive: {e}")
+            print(f"⚠ Error general cargando sonidos: {e}")
             self.audio_disponible = False
 
     def reproducir(self, nombre):
@@ -331,12 +351,6 @@ class GestorAudio:
                 self.sonidos[nombre].play()
             except:
                 pass
-
-    
-    def reproducir(self, nombre):
-        """Reproduce un efecto de sonido."""
-        if nombre in self.sonidos:
-            self.sonidos[nombre].play()
     
     def iniciar_musica(self):
         """Inicia la música de fondo en bucle."""
@@ -404,39 +418,39 @@ def ejecutar_juego(mano=None):
             elif event.type == pygame.KEYDOWN:
                 if event.key in (pygame.K_LEFT, pygame.K_a):
                     if motor.mover(-1, 0):
-                        audio.reproducir('mover')
+                        audio.reproducir('move.wav')
                     mover_izq = True
                     ultimo_mov = ahora
                 
                 elif event.key in (pygame.K_RIGHT, pygame.K_d):
                     if motor.mover(1, 0):
-                        audio.reproducir('mover')
+                        audio.reproducir('move.wav')
                     mover_der = True
                     ultimo_mov = ahora
                 
                 elif event.key in (pygame.K_UP, pygame.K_x):
                     if motor.rotar(1):
-                        audio.reproducir('rotar')
+                        audio.reproducir('rotate.wav')
                 
                 elif event.key == pygame.K_z:
                     if motor.rotar(-1):
-                        audio.reproducir('rotar')
+                        audio.reproducir('rotate.wav')
                 
                 elif event.key == pygame.K_DOWN:
                     caida_suave_teclado = True
                 
                 elif event.key == pygame.K_SPACE:
                     filas = motor.caida_dura()
-                    audio.reproducir('fijar')
+                    audio.reproducir('piece_landed.wav')
                     
                     estado = motor.obtener_estado()
                     if estado['lineas'] >= 4:
-                        audio.reproducir('tetris')
+                        audio.reproducir('4_lines.wav')
                     elif estado['lineas'] > 0:
-                        audio.reproducir('linea')
+                        audio.reproducir('line.wav')
                     
                     if estado['nivel'] > nivel_anterior:
-                        audio.reproducir('nivel')
+                        audio.reproducir('level_up.wav')
                         nivel_anterior = estado['nivel']
                     
                     ultima_gravedad = ahora
@@ -463,31 +477,31 @@ def ejecutar_juego(mano=None):
             # Movimiento lateral
             if dir_mov == -1:
                 if motor.mover(-1, 0):
-                    audio.reproducir('mover')
+                    audio.reproducir('move.wav')
             elif dir_mov == 1:
                 if motor.mover(1, 0):
-                    audio.reproducir('mover')
+                    audio.reproducir('move.wav')
             
             # Rotación
             if rotar_borde:
                 if motor.rotar(1):
-                    audio.reproducir('rotar')
+                    audio.reproducir('rotate.wav')
             
             # Caída dura con gesto
             if caida_dura_borde:
                 filas = motor.caida_dura()
-                audio.reproducir('fijar')
+                audio.reproducir('piece_landed.wav')
                 
                 estado = motor.obtener_estado()
                 lineas_nuevas = estado['lineas']
                 
                 if lineas_nuevas == 4:
-                    audio.reproducir('tetris')
+                    audio.reproducir('4_lines.wav')
                 elif lineas_nuevas > 0:
-                    audio.reproducir('linea')
+                    audio.reproducir('line.wav')
                 
                 if estado['nivel'] > nivel_anterior:
-                    audio.reproducir('nivel')
+                    audio.reproducir('level_up.wav')
                     nivel_anterior = estado['nivel']
                 
                 ultima_gravedad = ahora
@@ -499,10 +513,10 @@ def ejecutar_juego(mano=None):
         if mover_izq or mover_der:
             if ahora - ultimo_mov >= retraso_repeticion:
                 if mover_izq and motor.mover(-1, 0):
-                    audio.reproducir('mover')
+                    audio.reproducir('move.wav')
                     ultimo_mov = ahora
                 if mover_der and motor.mover(1, 0):
-                    audio.reproducir('mover')
+                    audio.reproducir('move.wav')
                     ultimo_mov = ahora
         
         # 4) CAÍDA SUAVE
@@ -520,18 +534,18 @@ def ejecutar_juego(mano=None):
             if not motor.caida_suave():
                 estado_anterior = motor.obtener_estado()
                 motor._fijar_pieza()
-                audio.reproducir('fijar')
+                audio.reproducir('piece_landed.wav')
                 
                 estado = motor.obtener_estado()
                 lineas_nuevas = estado['lineas'] - estado_anterior['lineas']
                 
                 if lineas_nuevas == 4:
-                    audio.reproducir('tetris')
+                    audio.reproducir('4_lines.wav')
                 elif lineas_nuevas > 0:
-                    audio.reproducir('linea')
+                    audio.reproducir('line.wav')
                 
                 if estado['nivel'] > nivel_anterior:
-                    audio.reproducir('nivel')
+                    audio.reproducir('level_up.wav')
                     nivel_anterior = estado['nivel']
             
             ultima_gravedad = ahora
@@ -550,7 +564,7 @@ def ejecutar_juego(mano=None):
     
     # GAME OVER
     audio.detener_musica()
-    audio.reproducir('game_over')
+    audio.reproducir('game_over.wav')
     
     estado_final = motor.obtener_estado()
     render.barrido_game_over(estado_final['tablero'])
@@ -568,7 +582,7 @@ def main():
     pygame.mixer.pre_init(44100, -16, 2, 512)
     pygame.init()
     
-    # IMPORTANTE: Pasar mostrar_camara=False para que no se abra ventana separada
+    
     mano = crear_controlador_manos_o_nada(mostrar_camara=False, espejo=False)
     
     while True:
