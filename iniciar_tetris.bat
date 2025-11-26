@@ -13,14 +13,21 @@ IF %ERRORLEVEL% NEQ 0 (
     start /wait python_installer.exe /quiet InstallAllUsers=1 PrependPath=1
     del python_installer.exe
 )
+
 echo.
 echo =========================================
 echo       Instalando dependencias
 echo =========================================
 python instalar_dependencias.py
+
 echo.
 echo =========================================
 echo         Ejecutando Tetris
 echo =========================================
+
+REM Entrar a la carpeta src
+cd src
+
 python cascara_tetris.py
+
 pause
