@@ -16,7 +16,7 @@ from __future__ import annotations
 import threading
 import math
 import time
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional, List, Dict, Any
 
 # Silenciar logs
 import os, warnings
@@ -38,7 +38,12 @@ except Exception:
 
 
 class ControladorMano:
-    """Controlador de gestos de mano para Tetris."""
+    """
+    Controlador de gestos de mano para Tetris utilizando MediaPipe y OpenCV.
+
+    Procesa frames de la cámara en segundo plano para detectar gestos específicos
+    que se traducen en acciones del juego.
+    """
 
     def __init__(
         self,
@@ -52,11 +57,23 @@ class ControladorMano:
         rotar_debounce_s: float = 0.18,
         caida_dura_debounce_s: float = 0.5,
         movimiento_debounce_s: float = 0.18,
-        mostrar_camara: bool = False,  # Ahora por defecto False
+        mostrar_camara: bool = False,
         espejar_previsualizacion: bool = False,
         escala_previsualizacion: float = 1.5,
         depurar: bool = False,
     ) -> None:
+        """
+        Inicializa el controlador de manos.
+
+        Args:
+            indice_cam (int): Índice de la cámara a usar (0 por defecto).
+            ancho (int): Ancho de captura de video.
+            alto (int): Alto de captura de video.
+            dist_min_dedo (float): Distancia mínima normalizada para considerar un dedo extendido.
+            umbral_dir_pulgar (float): Umbral vertical para detectar orientación del pulgar.
+            mostrar_camara (bool): Si es True, muestra una ventana de OpenCV con debug (no recomendado si se usa en juego).
+            espejar_previsualizacion (bool): Invierte horizontalmente la imagen de previsualización.
+        """
         if not MEDIAPIPE_DISPONIBLE:
             raise RuntimeError("MediaPipe / OpenCV no disponibles")
 
@@ -90,28 +107,28 @@ class ControladorMano:
             min_tracking_confidence=0.6,
         )
 
-        # Estado público
+        # Estado público (leído por el juego)
         self.dir_mov: int = 0
         self.caida_suave: bool = False
         self.borde_rotar_hor: bool = False
         self.borde_caida_dura: bool = False
-        
-        # NUEVO: Frame actual para renderizado externo
+
+        # Frame actual para renderizado externo
         self.ultimo_frame = None
         self._lock_frame = threading.Lock()
 
-        # Estado interno para debouncing
+        # Estado interno para debouncing (evitar repeticiones falsas)
         self._izq_armado: bool = True
         self._der_armado: bool = True
         self._rotar_armado: bool = True
         self._caida_dura_armado: bool = True
-        
+
         self._ultimo_tiempo_rotar: float = 0.0
         self._ultimo_tiempo_caida_dura: float = 0.0
         self._ultimo_tiempo_izq: float = 0.0
         self._ultimo_tiempo_der: float = 0.0
 
-        # HUD
+        # Debugging counters
         self._pasos_izq: int = 0
         self._pasos_der: int = 0
         self._contador_rotar: int = 0
@@ -119,17 +136,19 @@ class ControladorMano:
         self._rotar_destellar_hasta: float = 0.0
         self._caida_dura_destellar_hasta: float = 0.0
 
-        # Hilo
+        # Hilo de procesamiento
         self._ejecutando = False
         self._hilo = threading.Thread(target=self._bucle, daemon=True)
 
     def iniciar(self) -> None:
-        """Iniciar el bucle de cámara en segundo plano."""
+        """Inicia el bucle de captura y procesamiento en un hilo separado."""
         self._ejecutando = True
         self._hilo.start()
 
     def detener(self) -> None:
-        """Detener el bucle y limpiar recursos."""
+        """
+        Detiene el hilo de procesamiento y libera recursos de la cámara y MediaPipe.
+        """
         self._ejecutando = False
         try:
             self._hilo.join(timeout=1.0)
@@ -151,25 +170,53 @@ class ControladorMano:
             pass
 
     def consultar(self) -> Tuple[int, bool, bool, bool]:
-        """Retorna (dir_mov, caida_suave, borde_rotar, borde_caida_dura)."""
+        """
+        Obtiene el estado actual de los gestos detectados y reinicia los disparadores de un solo uso.
+
+        Returns:
+            Tuple[int, bool, bool, bool]:
+                - dir_mov: -1 (izq), 0 (nada), 1 (der).
+                - caida_suave: True si el gesto de caída suave está activo.
+                - rotar: True si se detectó el gesto de rotar (disparo único).
+                - caida_dura: True si se detectó el gesto de caída dura (disparo único).
+        """
         brh = self.borde_rotar_hor
         bcd = self.borde_caida_dura
+        # Resetear flags de un solo disparo
         self.borde_rotar_hor = False
         self.borde_caida_dura = False
         return self.dir_mov, self.caida_suave, brh, bcd
 
     @staticmethod
     def _distancia(a, b) -> float:
-        """Distancia euclidiana entre dos puntos."""
+        """Calcula la distancia euclidiana entre dos puntos de referencia."""
         return math.hypot(a.x - b.x, a.y - b.y)
 
     def _es_dedo_extendido(self, lm, id_punta: int, id_pip: int, id_mcp: int) -> bool:
-        """Verifica si un dedo está extendido usando distancia uniforme."""
+        """
+        Verifica si un dedo está extendido basándose en la posición relativa de sus articulaciones.
+
+        Args:
+            lm: Lista de landmarks.
+            id_punta: ID del landmark de la punta del dedo.
+            id_pip: ID del landmark de la articulación media.
+            id_mcp: ID del landmark de la base del dedo.
+
+        Returns:
+            bool: True si el dedo está extendido.
+        """
         punta, pip, mcp = lm[id_punta], lm[id_pip], lm[id_mcp]
+        # El dedo está extendido si la punta está más arriba que la articulación media
+        # y la distancia a la base es suficiente.
         return (punta.y < pip.y - 0.008) and (math.hypot(punta.x - mcp.x, punta.y - mcp.y) >= self.dist_min_dedo)
 
     def _contar_dedos_extendidos(self, lm) -> Tuple[bool, bool, bool, bool]:
-        """Retorna (índice, medio, anular, meñique) extendidos."""
+        """
+        Determina qué dedos (Índice, Medio, Anular, Meñique) están extendidos.
+
+        Returns:
+            Tuple[bool, bool, bool, bool]: Flags para cada dedo.
+        """
         ind = self._es_dedo_extendido(lm, 8, 6, 5)
         med = self._es_dedo_extendido(lm, 12, 10, 9)
         anl = self._es_dedo_extendido(lm, 16, 14, 13)
@@ -177,12 +224,18 @@ class ControladorMano:
         return ind, med, anl, men
 
     def _pulgar_arriba_abajo(self, lm) -> Tuple[bool, bool]:
-        """Detecta pulgar arriba o abajo."""
+        """
+        Detecta la orientación del pulgar (Arriba o Abajo) para control de movimiento.
+
+        Returns:
+            Tuple[bool, bool]: (Es arriba, Es abajo)
+        """
         punta, ip_, mcp = lm[4], lm[3], lm[2]
         vy = punta.y - mcp.y
         vx = punta.x - mcp.x
         punta_vs_ip = punta.y - ip_.y
 
+        # El pulgar debe estar principalmente vertical
         suficientemente_vertical = abs(vy) > abs(vx) * 0.6
 
         abajo = (vy >= self.umbral_dir_pulgar) and (punta_vs_ip > 0.005) and suficientemente_vertical
@@ -190,14 +243,17 @@ class ControladorMano:
         return arriba, abajo
 
     def _pulgar_extendido(self, lm) -> bool:
-        """Detecta si el pulgar está extendido."""
+        """Detecta si el pulgar está extendido lejos de la palma."""
         punta, mcp = lm[4], lm[2]
         muneca = lm[0]
         dist = math.hypot(punta.x - muneca.x, punta.y - muneca.y)
         return dist >= self.dist_min_dedo
 
     def _bucle(self) -> None:
-        """Bucle principal de detección."""
+        """
+        Bucle principal que se ejecuta en segundo plano.
+        Captura frames, procesa con MediaPipe y actualiza el estado interno de gestos.
+        """
         if self.mostrar_camara:
             cv2.namedWindow("Cámara Mano", cv2.WINDOW_NORMAL)
             try:
@@ -218,6 +274,7 @@ class ControladorMano:
                 time.sleep(0.01)
                 continue
 
+            # Cálculo de FPS
             ahora_cuadro = time.time()
             dt = ahora_cuadro - tiempo_previo
             tiempo_previo = ahora_cuadro
@@ -228,7 +285,7 @@ class ControladorMano:
             cuadro_rgb = cv2.cvtColor(cuadro_bgr, cv2.COLOR_BGR2RGB)
             resultados = self.manos.process(cuadro_rgb)
 
-            # Reiniciar intenciones
+            # Reiniciar intenciones para este frame
             self.dir_mov = 0
             self.caida_suave = False
 
@@ -264,12 +321,13 @@ class ControladorMano:
                         'solo_menique': men and not ind and not med and not anl,
                     }
 
+                    # Clasificar mano (Espejo por defecto en webcam: Left es derecha del usuario)
                     if etiqueta_camara == 'Left':
                         mano_der_usuario = datos_mano
                     elif etiqueta_camara == 'Right':
                         mano_izq_usuario = datos_mano
 
-                    # Dibujar landmarks
+                    # Dibujar esqueleto de la mano en el frame de debug
                     self.mp_dibujar.draw_landmarks(
                         dibujar_bgr,
                         mano_lms,
@@ -279,17 +337,20 @@ class ControladorMano:
                     )
 
             # ===== PROCESAR GESTOS =====
+
+            # Gesto Caída Dura: Cualquier dedo (índice/medio/anular) extendido solo (sin meñique)
+            # o gesto claro de apuntar
             dedo_libre_detectado = False
-            
+
             if mano_izq_usuario:
-                dedos_sin_menique = [mano_izq_usuario['ind'], mano_izq_usuario['med'], 
+                dedos_sin_menique = [mano_izq_usuario['ind'], mano_izq_usuario['med'],
                                      mano_izq_usuario['anl']]
                 if sum(dedos_sin_menique) == 1 and not mano_izq_usuario['men']:
                     if not mano_izq_usuario['pulgar_arriba'] and not mano_izq_usuario['pulgar_abajo']:
                         dedo_libre_detectado = True
-            
+
             if mano_der_usuario:
-                dedos_sin_menique = [mano_der_usuario['ind'], mano_der_usuario['med'], 
+                dedos_sin_menique = [mano_der_usuario['ind'], mano_der_usuario['med'],
                                      mano_der_usuario['anl']]
                 if sum(dedos_sin_menique) == 1 and not mano_der_usuario['men']:
                     if not mano_der_usuario['pulgar_arriba'] and not mano_der_usuario['pulgar_abajo']:
@@ -305,7 +366,8 @@ class ControladorMano:
             else:
                 self._caida_dura_armado = True
 
-            solo_menique_izq = (mano_izq_usuario and mano_izq_usuario['solo_menique'] 
+            # Gesto Rotar: Solo el dedo meñique extendido (gesto Shaka o similar)
+            solo_menique_izq = (mano_izq_usuario and mano_izq_usuario['solo_menique']
                                and not dedo_libre_detectado)
             solo_menique_der = (mano_der_usuario and mano_der_usuario['solo_menique']
                                and not dedo_libre_detectado)
@@ -321,8 +383,9 @@ class ControladorMano:
             else:
                 self._rotar_armado = True
 
-            if (mano_izq_usuario and mano_izq_usuario['pulgar_arriba'] 
-                and not solo_menique_izq 
+            # Gesto Mover Izquierda: Pulgar arriba (Mano Izquierda)
+            if (mano_izq_usuario and mano_izq_usuario['pulgar_arriba']
+                and not solo_menique_izq
                 and not dedo_libre_detectado):
                 if self._izq_armado and (ahora - self._ultimo_tiempo_izq) >= self.movimiento_debounce_s:
                     self.dir_mov = -1
@@ -332,8 +395,9 @@ class ControladorMano:
             else:
                 self._izq_armado = True
 
-            if (mano_der_usuario and mano_der_usuario['pulgar_arriba'] 
-                and not solo_menique_der 
+            # Gesto Mover Derecha: Pulgar arriba (Mano Derecha)
+            if (mano_der_usuario and mano_der_usuario['pulgar_arriba']
+                and not solo_menique_der
                 and not dedo_libre_detectado):
                 if self._der_armado and (ahora - self._ultimo_tiempo_der) >= self.movimiento_debounce_s:
                     self.dir_mov = 1
@@ -343,6 +407,7 @@ class ControladorMano:
             else:
                 self._der_armado = True
 
+            # Gesto Caída Suave: Pulgar abajo (Cualquier mano)
             pulgar_abajo_detectado = False
             if not dedo_libre_detectado:
                 if mano_izq_usuario and mano_izq_usuario['pulgar_abajo']:
@@ -363,13 +428,13 @@ class ControladorMano:
 
                 poner(24,  f"IZQUIERDA: {self._pasos_izq} | Armado: {'SI' if self._izq_armado else 'NO'}")
                 poner(48,  f"DERECHA: {self._pasos_der} | Armado: {'SI' if self._der_armado else 'NO'}")
-                
+
                 rotar_on = (time.time() <= self._rotar_destellar_hasta)
                 poner(72,  f"ROTAR: {self._contador_rotar} | {'ACTIVO!' if rotar_on else 'listo'}")
-                
+
                 caida_dura_on = (time.time() <= self._caida_dura_destellar_hasta)
                 poner(96,  f"CAIDA DURA: {self._contador_caida_dura} | {'ACTIVO!' if caida_dura_on else 'listo'}")
-                
+
                 poner(120, f"Caida Suave: {'ACTIVA' if self.caida_suave else 'inactiva'}")
                 poner(144, f"Manos: Izq={'SI' if mano_izq_usuario else 'NO'} | Der={'SI' if mano_der_usuario else 'NO'} | FPS: {fps:4.1f}")
 
@@ -385,11 +450,22 @@ class ControladorMano:
                 elif tecla == ord('m'):
                     self.espejar_previsualizacion = not self.espejar_previsualizacion
 
+            # Limitar a ~60 FPS de procesamiento
             time.sleep(1/60.0)
 
 
 def crear_controlador_manos_o_nada(mostrar_camara: bool = False, espejo: bool = False, **kwargs) -> Optional[ControladorMano]:
-    """Crea y retorna un controlador de manos o None si falla."""
+    """
+    Intenta crear una instancia de ControladorMano.
+    Si MediaPipe no está instalado o hay un error de inicialización, retorna None.
+
+    Args:
+        mostrar_camara (bool): Abre ventana de debug si True.
+        espejo (bool): Espeja la vista de debug.
+
+    Returns:
+        Optional[ControladorMano]: La instancia o None.
+    """
     if not MEDIAPIPE_DISPONIBLE:
         return None
     try:

@@ -72,9 +72,19 @@ Asegúrate de que tu mano sea visible para la cámara. El sistema distingue entr
 
 ## Estructura del Proyecto
 
-*   `src/core_tetris.py`: Lógica pura del juego (tablero, piezas, colisiones). Independiente de la interfaz gráfica.
-*   `src/cascara_tetris.py`: Interfaz gráfica con Pygame, manejo de audio y bucle principal.
-*   `src/controlador_manos.py`: Módulo de visión por computadora que procesa la entrada de la cámara y detecta gestos.
+El código está organizado modularmente para separar la lógica del juego de la presentación y la entrada de sensores.
 
+### `src/core_tetris.py`
+Contiene la **lógica pura del juego**. No tiene dependencias externas más allá de `random` y `typing`.
+*   `Pieza`: Clase que representa un tetrominó.
+*   `Motor`: Clase principal que gestiona el tablero, colisiones, puntuación y reglas del juego.
 
+### `src/controlador_manos.py`
+Módulo de **visión artificial** utilizando `mediapipe`.
+*   `ControladorMano`: Ejecuta un hilo secundario que procesa la entrada de la webcam, detecta puntos clave de la mano y traduce la posición de los dedos en comandos abstractos (izquierda, derecha, rotar, etc.).
 
+### `src/cascara_tetris.py`
+El punto de entrada y la **capa de presentación**.
+*   `RenderizadorTetris`: Dibuja el estado del juego y el feed de la cámara usando `pygame`.
+*   `GestorAudio`: Gestiona la descarga y reproducción de efectos de sonido.
+*   Bucle principal: Coordina el reloj del juego, los eventos de teclado y las consultas al controlador de manos.
