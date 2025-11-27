@@ -4,7 +4,6 @@
 # =============================================================================
 # Este módulo maneja toda la visualización, sonidos, controles y flujo de UI
 # usando pygame. Depende de nucleo_tetris.py para la lógica del juego.
-# VERSIÓN MEJORADA: Cámara integrada en esquina superior derecha
 
 import pygame
 import sys
@@ -601,3 +600,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
