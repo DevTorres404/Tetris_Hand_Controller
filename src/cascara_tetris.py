@@ -260,17 +260,20 @@ class RenderizadorTetris:
 # ============================================================
 #                      GESTOR DE AUDIO
 # ============================================================
+# ============================================================
+#                       GESTOR DE AUDIO (OFFLINE)
+# ============================================================
 class GestorAudio:
-    """Maneja todos los efectos de sonido y música, descargándolos automáticamente desde Google Drive si no existen."""
+    """Maneja los efectos de sonido y música cargándolos desde la carpeta local."""
 
     def __init__(self):
         self.sonidos = {}
         self.audio_disponible = True
-        self._descargar_y_cargar_sonidos()
+        self._cargar_sonidos_locales()
 
-    def _descargar_y_cargar_sonidos(self):
+    def _cargar_sonidos_locales(self):
         try:
-            # Ruta donde está el script
+            # 1. Busca la carpeta Sound_Effects donde está este script
             if '__file__' in globals():
                 directorio_script = os.path.dirname(os.path.abspath(__file__))
             else:
@@ -278,74 +281,48 @@ class GestorAudio:
 
             ruta_sonidos = os.path.join(directorio_script, DIRECTORIO_SONIDOS)
 
-            # Crear la carpeta
+            # Lista exacta de tus archivos .wav (Tal como en tu imagen)
+            lista_archivos = [
+                "4_lines.wav", "background.wav", "game_over.wav", 
+                "level_up.wav", "line.wav", "move.wav", 
+                "piece_landed.wav", "rotate.wav"
+            ]
+
+            print(f"--- Cargando sonidos desde: {ruta_sonidos} ---")
+
             if not os.path.exists(ruta_sonidos):
-                os.makedirs(ruta_sonidos)
+                print(f"[ERROR] No encuentro la carpeta '{DIRECTORIO_SONIDOS}'")
+                self.audio_disponible = False
+                return
 
-            # IDs de los archivos drive
-            archivos_drive = {
-                "4_lines.wav": "1PrLjw_9ifUBGyn0b_GnA6vH4pvSV5MTf",
-                "background.wav": "1STTE3Jc2SafYSBtKLvCEf2iiB2x5m8Ax",
-                "game_over.wav": "1XwHBkiUIH_fULbdm9BHbJAr4RPWKnnk0",
-                "level_up.wav": "19Jiu1UxFI4dHdnRYoek1vFQCRlJ1McRG",
-                "line.wav": "1-1fEUebLeSPlLdiLkcBSpQvGHuJJF3i4",
-                "move.wav": "1CeekfCUfvTqBuTl-_DeFpKOvgqhUTcxl",
-                "piece_landed.wav": "1E41kNjCikIqfVfS7mV1Tt4gXqYqx-qwu",
-                "rotate.wav": "1eNFH6FDJJaw5zqSsmaPv3JBOQ6RbvtL-"
-            }
-
-            # Descargar cada archivo si no existe
-            archivos_descargados = 0
-            for nombre, file_id in archivos_drive.items():
-                destino = os.path.join(ruta_sonidos, nombre)
-
-                if not os.path.exists(destino):
-                    print(f"Descargando {nombre} desde Google Drive...")
-                    try:
-                        # URL correcta para descarga directa de Google Drive
-                        url = f"https://drive.google.com/uc?export=download&id={file_id}&confirm=t"
-                        
-                        # Usar headers para evitar bloqueos
-                        req = urllib.request.Request(url, headers={
-                            'User-Agent': 'Mozilla/5.0'
-                        })
-                        
-                        with urllib.request.urlopen(req, timeout=30) as response:
-                            with open(destino, 'wb') as out_file:
-                                out_file.write(response.read())
-                        
-                        archivos_descargados += 1
-                        print(f"✓ {nombre} descargado")
-                    except Exception as e:
-                        print(f"✗ Error descargando {nombre}: {e}")
-
-            # Cargar los sonidos en pygame
             sonidos_cargados = 0
-            for nombre in archivos_drive.keys():
-                ruta = os.path.join(ruta_sonidos, nombre)
-
-                if os.path.exists(ruta):
+            for nombre in lista_archivos:
+                ruta_completa = os.path.join(ruta_sonidos, nombre)
+                
+                if os.path.exists(ruta_completa):
                     try:
                         if nombre == "background.wav":
-                            pygame.mixer.music.load(ruta)
+                            # La música se carga en el canal de música
+                            pygame.mixer.music.load(ruta_completa)
                         else:
-                            self.sonidos[nombre] = pygame.mixer.Sound(ruta)
+                            # Los efectos se cargan en memoria
+                            self.sonidos[nombre] = pygame.mixer.Sound(ruta_completa)
+                        
+                        print(f"[OK] {nombre} cargado.")
                         sonidos_cargados += 1
                     except Exception as e:
-                        print(f"✗ Error cargando {nombre}: {e}")
+                        print(f"[ERROR] Falló al cargar {nombre}: {e}")
+                else:
+                    print(f"[FALTA] No encuentro el archivo: {nombre}")
 
-            if sonidos_cargados > 0:
-                print(f"✓ {sonidos_cargados}/{len(archivos_drive)} sonidos cargados correctamente")
-            else:
-                print("⚠ No se pudo cargar ningún sonido")
+            if sonidos_cargados == 0:
                 self.audio_disponible = False
 
         except Exception as e:
-            print(f"⚠ Error general cargando sonidos: {e}")
+            print(f"[ERROR CRITICO] Error en sistema de audio: {e}")
             self.audio_disponible = False
 
     def reproducir(self, nombre):
-        """Reproduce un efecto de sonido si está disponible."""
         if self.audio_disponible and nombre in self.sonidos:
             try:
                 self.sonidos[nombre].play()
@@ -353,11 +330,14 @@ class GestorAudio:
                 pass
     
     def iniciar_musica(self):
-        """Inicia la música de fondo en bucle."""
-        pygame.mixer.music.play(-1)
+        if self.audio_disponible:
+            try:
+                # -1 significa bucle infinito
+                pygame.mixer.music.play(-1)
+            except:
+                pass
     
     def detener_musica(self):
-        """Detiene la música de fondo."""
         pygame.mixer.music.stop()
 
 # ============================================================
