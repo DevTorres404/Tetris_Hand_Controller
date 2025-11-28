@@ -1,5 +1,5 @@
 # controlador_manos.py — Controlador por gestos de mano MODIFICADO para Tetris
-# VERSIÓN INTEGRADA: Guarda frames para renderizado externo
+# VERSIÓN FINAL: Con Anti-Rebote (Hysteresis) para evitar dobles movimientos
 """
 GESTOS:
 -------
@@ -45,14 +45,14 @@ class ControladorMano:
         indice_cam: int = 0,
         ancho: int = 640,
         alto: int = 480,
-        dist_min_dedo: float = 0.15,
+        dist_min_dedo: float = 0.18,
         umbral_dir_pulgar: float = 0.10,
         pose_activar_ms: int = 220,
         pose_desactivar_ms: int = 120,
-        rotar_debounce_s: float = 0.18,
+        rotar_debounce_s: float = 0.20,
         caida_dura_debounce_s: float = 0.5,
-        movimiento_debounce_s: float = 0.18,
-        mostrar_camara: bool = False,  # Ahora por defecto False
+        movimiento_debounce_s: float = 0.25,
+        mostrar_camara: bool = False,
         espejar_previsualizacion: bool = False,
         escala_previsualizacion: float = 1.5,
         depurar: bool = False,
@@ -79,15 +79,15 @@ class ControladorMano:
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, ancho)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, alto)
 
-        # MediaPipe
+        # MediaPipe - MODIFICADO: Tracking más estricto (0.7)
         self.mp_manos = mp.solutions.hands
         self.mp_dibujar = mp.solutions.drawing_utils
         self.mp_estilo = mp.solutions.drawing_styles
         self.manos = self.mp_manos.Hands(
             static_image_mode=False,
             max_num_hands=2,
-            min_detection_confidence=0.6,
-            min_tracking_confidence=0.6,
+            min_detection_confidence=0.7, # Subido a 0.7
+            min_tracking_confidence=0.7,  # Subido a 0.7 para evitar flickering
         )
 
         # Estado público
@@ -110,6 +110,10 @@ class ControladorMano:
         self._ultimo_tiempo_caida_dura: float = 0.0
         self._ultimo_tiempo_izq: float = 0.0
         self._ultimo_tiempo_der: float = 0.0
+
+        # NUEVO: Variables para Histéresis (Anti-rebote al soltar)
+        self._ultimo_tiempo_izq_visto: float = 0.0
+        self._ultimo_tiempo_der_visto: float = 0.0
 
         # HUD
         self._pasos_izq: int = 0
@@ -149,14 +153,20 @@ class ControladorMano:
                 cv2.destroyAllWindows()
         except Exception:
             pass
-
     def consultar(self) -> Tuple[int, bool, bool, bool]:
         """Retorna (dir_mov, caida_suave, borde_rotar, borde_caida_dura)."""
+       
+        dm = self.dir_mov
         brh = self.borde_rotar_hor
         bcd = self.borde_caida_dura
+        
+        
+        self.dir_mov = 0           
         self.borde_rotar_hor = False
         self.borde_caida_dura = False
-        return self.dir_mov, self.caida_suave, brh, bcd
+        
+        return dm, self.caida_suave, brh, bcd
+
 
     @staticmethod
     def _distancia(a, b) -> float:
@@ -295,6 +305,7 @@ class ControladorMano:
                     if not mano_der_usuario['pulgar_arriba'] and not mano_der_usuario['pulgar_abajo']:
                         dedo_libre_detectado = True
 
+            # Gesto: Caída Dura (Dedo libre)
             if dedo_libre_detectado:
                 if self._caida_dura_armado and (ahora - self._ultimo_tiempo_caida_dura) >= self.caida_dura_debounce_s:
                     self.borde_caida_dura = True
@@ -305,10 +316,11 @@ class ControladorMano:
             else:
                 self._caida_dura_armado = True
 
+            # Gesto: Rotar (Solo Meñique)
             solo_menique_izq = (mano_izq_usuario and mano_izq_usuario['solo_menique'] 
-                               and not dedo_libre_detectado)
+                                and not dedo_libre_detectado)
             solo_menique_der = (mano_der_usuario and mano_der_usuario['solo_menique']
-                               and not dedo_libre_detectado)
+                                and not dedo_libre_detectado)
             solo_menique_detectado = solo_menique_izq or solo_menique_der
 
             if solo_menique_detectado and not dedo_libre_detectado:
@@ -321,27 +333,44 @@ class ControladorMano:
             else:
                 self._rotar_armado = True
 
-            if (mano_izq_usuario and mano_izq_usuario['pulgar_arriba'] 
-                and not solo_menique_izq 
-                and not dedo_libre_detectado):
+
+            
+            # --- IZQUIERDA ---
+            es_gesto_izq = (mano_izq_usuario and mano_izq_usuario['pulgar_arriba'] 
+                            and not solo_menique_izq 
+                            and not dedo_libre_detectado)
+            
+            if es_gesto_izq:
+                self._ultimo_tiempo_izq_visto = ahora  
+                
                 if self._izq_armado and (ahora - self._ultimo_tiempo_izq) >= self.movimiento_debounce_s:
                     self.dir_mov = -1
                     self._pasos_izq += 1
                     self._ultimo_tiempo_izq = ahora
-                    self._izq_armado = False
-            else:
+                    self._izq_armado = False 
+
+            elif (ahora - self._ultimo_tiempo_izq_visto) > 0.30: 
                 self._izq_armado = True
 
-            if (mano_der_usuario and mano_der_usuario['pulgar_arriba'] 
-                and not solo_menique_der 
-                and not dedo_libre_detectado):
+            
+            es_gesto_der = (mano_der_usuario and mano_der_usuario['pulgar_arriba'] 
+                            and not solo_menique_der 
+                            and not dedo_libre_detectado)
+            
+            if es_gesto_der:
+                self._ultimo_tiempo_der_visto = ahora
+                
                 if self._der_armado and (ahora - self._ultimo_tiempo_der) >= self.movimiento_debounce_s:
                     self.dir_mov = 1
                     self._pasos_der += 1
                     self._ultimo_tiempo_der = ahora
                     self._der_armado = False
-            else:
+            
+            
+            elif (ahora - self._ultimo_tiempo_der_visto) > 0.30:
                 self._der_armado = True
+
+            # ==========================================================
 
             pulgar_abajo_detectado = False
             if not dedo_libre_detectado:
