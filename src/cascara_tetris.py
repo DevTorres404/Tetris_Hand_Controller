@@ -30,7 +30,7 @@ CAMARA_MARGEN = 15
 CAMARA_POS_X = COLUMNAS * CELDA + 25  
 CAMARA_POS_Y = CAMARA_MARGEN + 20  
 
-# Colores - ESQUEMA MODERNO Y VIBRANTE
+# Colores - ESQUEMA MODERNO
 NEGRO = (15, 15, 25)
 CUADRICULA = (60, 65, 90)
 BLANCO = (245, 250, 255)
@@ -255,6 +255,7 @@ class RenderizadorTetris:
         self.pantalla.blit(estado, estado.get_rect(center=(cx, cy - 10)))
         self.pantalla.blit(ayuda, ayuda.get_rect(center=(cx, cy + 30)))
         pygame.display.flip()
+        
 
 # ============================================================
 #                      GESTOR DE AUDIO
@@ -600,4 +601,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
