@@ -257,67 +257,66 @@ class RenderizadorTetris:
         pygame.display.flip()
         
 
-
-# ============================================================
-#                       GESTOR DE AUDIO (OFFLINE)
-# ============================================================
 class GestorAudio:
-    """Maneja los efectos de sonido y música cargándolos desde la carpeta local."""
+    """Carga audios locales desde la carpeta Sound_Effects (hermana de src)."""
 
     def __init__(self):
         self.sonidos = {}
         self.audio_disponible = True
-        self._cargar_sonidos_locales()
+        self._cargar_sonidos()
 
-    def _cargar_sonidos_locales(self):
+    def _cargar_sonidos(self):
         try:
-            # 1. Busca la carpeta Sound_Effects donde está este script
+            # 1. Obtenemos dónde está ESTE archivo (dentro de 'src')
             if '__file__' in globals():
-                directorio_script = os.path.dirname(os.path.abspath(__file__))
+                dir_actual = os.path.dirname(os.path.abspath(__file__))
             else:
-                directorio_script = os.getcwd()
+                dir_actual = os.getcwd()
 
-            ruta_sonidos = os.path.join(directorio_script, DIRECTORIO_SONIDOS)
+            # 2. Construimos la ruta: Salimos de 'src' (..) y entramos a 'Sound_Effects'
+            # La ruta será: .../Tetris_Hand_Controller/Sound_Effects
+            ruta_sonidos = os.path.join(dir_actual, "..", "Sound_Effects")
+            
+            # Normalizamos la ruta para evitar errores con los puntos '..'
+            ruta_sonidos = os.path.abspath(ruta_sonidos)
 
-            # Lista exacta de tus archivos .wav (Tal como en tu imagen)
-            lista_archivos = [
+            print(f"--- Buscando sonidos en: {ruta_sonidos} ---")
+
+            if not os.path.exists(ruta_sonidos):
+                print(f"[ERROR] No encuentro la carpeta de sonidos en: {ruta_sonidos}")
+                self.audio_disponible = False
+                return
+
+            # Lista exacta de tus archivos .wav
+            archivos = [
                 "4_lines.wav", "background.wav", "game_over.wav", 
                 "level_up.wav", "line.wav", "move.wav", 
                 "piece_landed.wav", "rotate.wav"
             ]
 
-            print(f"--- Cargando sonidos desde: {ruta_sonidos} ---")
-
-            if not os.path.exists(ruta_sonidos):
-                print(f"[ERROR] No encuentro la carpeta '{DIRECTORIO_SONIDOS}'")
-                self.audio_disponible = False
-                return
-
             sonidos_cargados = 0
-            for nombre in lista_archivos:
+            for nombre in archivos:
                 ruta_completa = os.path.join(ruta_sonidos, nombre)
                 
                 if os.path.exists(ruta_completa):
                     try:
                         if nombre == "background.wav":
-                            # La música se carga en el canal de música
                             pygame.mixer.music.load(ruta_completa)
                         else:
-                            # Los efectos se cargan en memoria
                             self.sonidos[nombre] = pygame.mixer.Sound(ruta_completa)
-                        
-                        print(f"[OK] {nombre} cargado.")
                         sonidos_cargados += 1
+                        print(f"[OK] {nombre}")
                     except Exception as e:
-                        print(f"[ERROR] Falló al cargar {nombre}: {e}")
+                        print(f"[FALLO] {nombre}: {e}")
                 else:
-                    print(f"[FALTA] No encuentro el archivo: {nombre}")
+                    print(f"[FALTA] {nombre}")
 
             if sonidos_cargados == 0:
+                print("[ADVERTENCIA] No se cargaron sonidos.")
                 self.audio_disponible = False
 
         except Exception as e:
-            print(f"[ERROR CRITICO] Error en sistema de audio: {e}")
+            print(f"[ERROR CRITICO] Audio deshabilitado: {e}")
             self.audio_disponible = False
 
     def reproducir(self, nombre):
@@ -330,13 +329,15 @@ class GestorAudio:
     def iniciar_musica(self):
         if self.audio_disponible:
             try:
-                # -1 significa bucle infinito
                 pygame.mixer.music.play(-1)
             except:
                 pass
     
     def detener_musica(self):
-        pygame.mixer.music.stop()
+        try:
+            pygame.mixer.music.stop()
+        except:
+            pass
 
 # ============================================================
 #                    BUCLE PRINCIPAL DEL JUEGO
@@ -579,6 +580,5 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
 
